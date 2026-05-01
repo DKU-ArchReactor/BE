@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    AWS_REGION: str = "ap-northeast-2"
+    AWS_S3_BUCKET: str = ""
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    S3_PRESIGN_EXPIRES_SECONDS: int = 300
+
     class Config:
         env_file = ".env"
 

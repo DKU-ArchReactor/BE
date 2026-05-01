@@ -2,7 +2,7 @@ import enum
 import uuid
 
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, String, Uuid
+from sqlalchemy import ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -26,7 +26,9 @@ class Build(Base):
         nullable=False,
         index=True,
     )
-    binary_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    binary_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    assembly_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    log: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[BuildStatus | None] = mapped_column(
         SAEnum(BuildStatus, name="build_status", native_enum=False, length=16),
         nullable=True,
