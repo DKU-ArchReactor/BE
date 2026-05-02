@@ -24,8 +24,8 @@ postgres_data/
 .claude/
 
 # Alembic (migration scripts managed outside repo)
-alembic/
-alembic.ini
+# alembic/
+# alembic.ini
 
 # OS
 .DS_Store
