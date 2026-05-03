@@ -8,11 +8,12 @@ from app.core.security import decode_access_token
 from app.models.user import User, UserRole
 
 bearer_scheme = HTTPBearer(auto_error=True)
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
-    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
+def _resolve_user(
+    creds: HTTPAuthorizationCredentials,
+    db: Session,
 ) -> User:
     exc = HTTPException(
         status.HTTP_401_UNAUTHORIZED,
@@ -29,6 +30,22 @@ def get_current_user(
     if user is None:
         raise exc
     return user
+
+
+def get_current_user(
+    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    return _resolve_user(creds, db)
+
+
+def get_current_user_optional(
+    creds: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if creds is None:
+        return None
+    return _resolve_user(creds, db)
 
 
 def require_role(*allowed: UserRole):
