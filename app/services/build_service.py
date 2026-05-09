@@ -6,6 +6,7 @@ from pathlib import Path
 
 from app.core.storage import upload_bytes
 from app.models.build import BuildStatus
+from app.services.binary import process_binary
 
 COMPILE_TIMEOUT_SEC = 10
 SUPPORTED_LANGS = {"c", "asm"}
@@ -120,6 +121,7 @@ def upload_compile_artifacts(
         assembly_key = f"{prefix}/assembly.s"
         upload_bytes(assembly_key, result.assembly.encode("utf-8"), "text/plain")
     if result.binary is not None:
+        processed = process_binary(result.binary)
         binary_key = f"{prefix}/binary.elf"
-        upload_bytes(binary_key, result.binary, "application/octet-stream")
+        upload_bytes(binary_key, processed, "application/octet-stream")
     return assembly_key, binary_key
