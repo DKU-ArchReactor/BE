@@ -213,7 +213,11 @@
                   "Effect": "Allow",
                   "Action": [
                     "s3:PutObject",
-                    "s3:PutObjectAcl"
+                    "s3:PutObjectAcl",
+                    "s3:GetObjectVersion",
+                    "s3:GetObjectVersionAcl",
+                    "s3:PutObjectVersionAcl",
+                    "s3:DeleteObject"
                   ],
                   "Resource": {
                     "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/resources/environments/e-nygnvhdugs/*"

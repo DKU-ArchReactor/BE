@@ -105,7 +105,11 @@
       "Effect": "Allow",
       "Action": [
         "s3:PutObject",
-        "s3:PutObjectAcl"
+        "s3:PutObjectAcl",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl",
+        "s3:PutObjectVersionAcl",
+        "s3:DeleteObject"
       ],
       "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/resources/environments/e-nygnvhdugs/*"
     }
