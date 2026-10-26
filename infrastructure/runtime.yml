@@ -1,0 +1,282 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ArchReactor demo network, private PostgreSQL and runtime roles, separate from the Beanstalk lifecycle.
+Metadata:
+  AWSToolsMetrics: {AWSAgentToolkit: aws-cloudformation@3}
+  com.aws.cloudformation.Context:
+    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}]
+Parameters:
+  Prefix:
+    Type: String
+    Default: archreactor-core
+    AllowedPattern: '[a-z][a-z0-9-]{2,30}'
+  EngineVersion:
+    Type: String
+    Default: '16.15'
+    AllowedPattern: '16\.[0-9]+'
+  CloudFrontOriginPrefixList:
+    Type: String
+    Default: pl-22a6434b
+    AllowedPattern: 'pl-[a-f0-9]+'
+    Description: AWS-managed CloudFront origin-facing prefix list in Seoul
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{Key: Name, Value: !Ref Prefix}]
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref Vpc, InternetGatewayId: !Ref InternetGateway}
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags: [{Key: Name, Value: !Sub '${Prefix}-web'}]
+  PublicRoutes:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Vpc}
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties: {RouteTableId: !Ref PublicRoutes, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway}
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {RouteTableId: !Ref PublicRoutes, SubnetId: !Ref PublicSubnet}
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: false
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Vpc
+      GroupDescription: Identity group for backend access to PostgreSQL
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourcePrefixListId: !Ref CloudFrontOriginPrefixList
+          Description: HTTPS from CloudFront origin-facing servers only
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Vpc
+      GroupDescription: PostgreSQL accessible only from backend instances
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 5432, ToPort: 5432, SourceSecurityGroupId: !Ref AppSecurityGroup}
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Isolated database subnets with no internet route
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+  SecretKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Encrypt backend secrets and database data
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'}
+            Action: 'kms:*'
+            Resource: '*'
+          - Effect: Allow
+            Principal: {Service: !Sub 'logs.${AWS::Region}.amazonaws.com'}
+            Action: ['kms:Encrypt', 'kms:Decrypt', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:DescribeKey']
+            Resource: '*'
+            Condition:
+              ArnLike:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/rds/instance/${Prefix}-db/*'
+  DbSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub '${Prefix}/database-credentials'
+      Description: Demo DB credentials generated in AWS; rotate with database and URL secret together
+      KmsKeyId: !GetAtt SecretKey.Arn
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"archreactor_owner","engine":"postgres","port":5432,"dbname":"archreactor"}'
+        GenerateStringKey: password
+        PasswordLength: 40
+        ExcludePunctuation: true
+        IncludeSpace: false
+  DatabaseLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/rds/instance/${Prefix}-db/postgresql'
+      RetentionInDays: 14
+      KmsKeyId: !GetAtt SecretKey.Arn
+  DbParameters:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: Require TLS for PostgreSQL connections
+      Family: postgres16
+      Parameters: {rds.force_ssl: '1'}
+  Database:
+    Type: AWS::RDS::DBInstance
+    DependsOn: DatabaseLogs
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DBInstanceIdentifier: !Sub '${Prefix}-db'
+      Engine: postgres
+      EngineVersion: !Ref EngineVersion
+      DBInstanceClass: db.t4g.micro
+      DBName: archreactor
+      MasterUsername: archreactor_owner
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DbSecret}:SecretString:password}}'
+      AllocatedStorage: '20'
+      MaxAllocatedStorage: 50
+      StorageType: gp3
+      StorageEncrypted: true
+      KmsKeyId: !GetAtt SecretKey.Arn
+      MultiAZ: false
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      DBParameterGroupName: !Ref DbParameters
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DeletionProtection: true
+      AutoMinorVersionUpgrade: true
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 7
+      PerformanceInsightsKMSKeyId: !GetAtt SecretKey.Arn
+      EnableCloudwatchLogsExports: [postgresql]
+      Tags: [{Key: Project, Value: ArchReactor}, {Key: Environment, Value: core}]
+  DatabaseUrlSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub '${Prefix}/database-url'
+      Description: Database URL injected by Beanstalk without exposing credentials in configuration
+      KmsKeyId: !GetAtt SecretKey.Arn
+      SecretString: !Sub 'postgresql://archreactor_owner:{{resolve:secretsmanager:${DbSecret}:SecretString:password}}@${Database.Endpoint.Address}:5432/archreactor?sslmode=require'
+  JwtSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub '${Prefix}/jwt-key'
+      Description: JWT signing key; coordinated rotation invalidates existing login sessions
+      KmsKeyId: !GetAtt SecretKey.Arn
+      GenerateSecretString: {PasswordLength: 64, ExcludePunctuation: true, IncludeSpace: false}
+  Artifacts:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'archreactor-artifacts-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      VersioningConfiguration: {Status: Enabled}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ['http://localhost:5173']
+            AllowedMethods: [GET, HEAD]
+            AllowedHeaders: ['*']
+            ExposedHeaders: [ETag]
+  ArtifactsPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Artifacts
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt Artifacts.Arn, !Sub '${Artifacts.Arn}/*']
+            Condition: {Bool: {'aws:SecureTransport': 'false'}}
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: archreactor-eb-ec2-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - {Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: 'sts:AssumeRole'}
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkWebTier'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      Policies:
+        - PolicyName: BackendResources
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'ecr:GetAuthorizationToken', Resource: '*'}
+              - Effect: Allow
+                Action: ['ecr:BatchCheckLayerAvailability', 'ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer']
+                Resource: !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/capstone/archreactor'
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/archreactor/*'
+              - Effect: Allow
+                Action: ['s3:GetObject', 's3:PutObject']
+                Resource: !Sub '${Artifacts.Arn}/builds/*'
+              - Effect: Allow
+                Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret']
+                Resource: [!Ref DatabaseUrlSecret, !Ref JwtSecret]
+                Condition: {Bool: {'aws:SecureTransport': 'true'}}
+              - Effect: Allow
+                Action: ['kms:Decrypt', 'kms:DescribeKey']
+                Resource: !GetAtt SecretKey.Arn
+                Condition:
+                  StringEquals: {'kms:ViaService': !Sub 'secretsmanager.${AWS::Region}.amazonaws.com'}
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: archreactor-eb-ec2-role
+      Roles: [!Ref InstanceRole]
+  ServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: archreactor-eb-service-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: elasticbeanstalk.amazonaws.com}
+            Action: 'sts:AssumeRole'
+            Condition: {StringEquals: {'sts:ExternalId': elasticbeanstalk}}
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy'
+Outputs:
+  VpcId: {Description: Dedicated backend network, Value: !Ref Vpc}
+  PublicSubnetId: {Description: Web server subnet, Value: !Ref PublicSubnet}
+  AppSecurityGroupId: {Description: Database client identity group, Value: !Ref AppSecurityGroup}
+  DatabaseEndpoint: {Description: Private PostgreSQL endpoint, Value: !GetAtt Database.Endpoint.Address}
+  DatabaseUrlSecretArn: {Description: Database URL secret reference, Value: !Ref DatabaseUrlSecret}
+  JwtSecretArn: {Description: JWT signing key reference, Value: !Ref JwtSecret}
+  InstanceProfile: {Description: Beanstalk EC2 instance profile, Value: !Ref InstanceProfile}
+  ServiceRoleArn: {Description: Beanstalk service role, Value: !GetAtt ServiceRole.Arn}
+  ArtifactBucket: {Description: Private compilation result bucket, Value: !Ref Artifacts}

@@ -2,6 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -12,8 +15,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
+COPY scripts/start-production.sh ./scripts/start-production.sh
+
+RUN useradd --create-home appuser
+USER appuser
 
 EXPOSE 8000
+
+ENTRYPOINT ["sh", "/app/scripts/start-production.sh"]
 
 CMD ["gunicorn", "app.main:app", \
      "-w", "2", \

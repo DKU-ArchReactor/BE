@@ -1,0 +1,95 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrLogin",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PushApplicationImage",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "arn:aws:ecr:ap-northeast-2:242925688392:repository/capstone/archreactor"
+    },
+    {
+      "Sid": "ReadDeployBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392"
+    },
+    {
+      "Sid": "UploadApplicationBundle",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/archreactor/*"
+    },
+    {
+      "Sid": "ReadBeanstalkTemplates",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::elasticbeanstalk-ap-northeast-2/environments/*",
+        "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/*"
+      ]
+    },
+    {
+      "Sid": "ReadEnvironments",
+      "Effect": "Allow",
+      "Action": [
+        "elasticbeanstalk:DescribeEnvironments"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RegisterVersion",
+      "Effect": "Allow",
+      "Action": [
+        "elasticbeanstalk:CreateApplicationVersion"
+      ],
+      "Resource": [
+        "arn:aws:elasticbeanstalk:ap-northeast-2:242925688392:application/archreactor",
+        "arn:aws:elasticbeanstalk:ap-northeast-2:242925688392:applicationversion/archreactor/*"
+      ]
+    },
+    {
+      "Sid": "DeployToEnvironment",
+      "Effect": "Allow",
+      "Action": [
+        "elasticbeanstalk:UpdateEnvironment"
+      ],
+      "Resource": "arn:aws:elasticbeanstalk:ap-northeast-2:242925688392:environment/archreactor/archreactor-core"
+    },
+    {
+      "Sid": "UpdateBeanstalkStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:GetTemplate",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:UpdateStack"
+      ],
+      "Resource": "arn:aws:cloudformation:ap-northeast-2:242925688392:stack/awseb-*/*"
+    }
+  ]
+}

@@ -1,0 +1,163 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFront default-domain HTTPS with uncached API traffic and verified TLS to the Beanstalk origin.
+Metadata:
+  AWSToolsMetrics: {AWSAgentToolkit: aws-cloudformation@3}
+  com.aws.cloudformation.Context:
+    ref: [{at: docs/aws/beanstalk.md, has: HTTPS scope and origin transport limitation}]
+Parameters:
+  OriginDomain:
+    Type: String
+    AllowedPattern: '[a-zA-Z0-9.-]+\.elasticbeanstalk\.com'
+  CachePolicyId:
+    Type: String
+    Description: Managed-CachingDisabled policy resolved from the CloudFront API
+  OriginRequestPolicyId:
+    Type: String
+    Description: Managed-AllViewerExceptHostHeader policy resolved from the CloudFront API
+Resources:
+  AccessLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Private encrypted request logs with bounded retention; legacy logging needs ACL support
+        must: [Keep public access blocked; do not store cookies in edge logs]
+    Properties:
+      OwnershipControls:
+        Rules: [{ObjectOwnership: BucketOwnerPreferred}]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      VersioningConfiguration: {Status: Enabled}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireLogs
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpiration: {NoncurrentDays: 30}
+            AbortIncompleteMultipartUpload: {DaysAfterInitiation: 1}
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AccessLogs
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt AccessLogs.Arn, !Sub '${AccessLogs.Arn}/*']
+            Condition: {Bool: {'aws:SecureTransport': 'false'}}
+  ResponseHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-api-headers'
+        Comment: Prevent browser caching of authentication and API responses
+        CustomHeadersConfig:
+          Items:
+            - {Header: Cache-Control, Value: 'no-store', Override: true}
+        SecurityHeadersConfig:
+          ContentTypeOptions: {Override: true}
+          FrameOptions: {FrameOption: DENY, Override: true}
+          ReferrerPolicy: {ReferrerPolicy: no-referrer, Override: true}
+          StrictTransportSecurity: {AccessControlMaxAgeSec: 31536000, Override: true}
+          ContentSecurityPolicy:
+            Override: true
+            ContentSecurityPolicy: "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; img-src 'self' data: https://fastapi.tiangolo.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+  HttpsRedirects:
+    Type: AWS::CloudFront::Function
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: FastAPI absolute redirects see the HTTP origin; keep clients on the public HTTPS endpoint
+        must: [Only rewrite redirects to this origin or the viewer host]
+    Properties:
+      Name: !Sub '${AWS::StackName}-redirects'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Preserve HTTPS on origin-generated absolute redirects
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub |
+        function handler(event) {
+          var response = event.response;
+          var location = response.headers.location;
+          var host = event.request.headers.host.value;
+          if (location) {
+            var origins = ['http://${OriginDomain}', 'https://${OriginDomain}', 'http://' + host];
+            for (var i = 0; i < origins.length; i++) {
+              if (location.value === origins[i] || location.value.indexOf(origins[i] + '/') === 0) {
+                location.value = 'https://' + host + location.value.slice(origins[i].length);
+                break;
+              }
+            }
+          }
+          return response;
+        }
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: LogBucketPolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Default AWS certificate avoids buying a domain or adding a load balancer for the demo
+        must:
+          - Never cache authenticated API responses; forward Authorization, cookies and query strings
+          - Require verified origin HTTPS; never fall back to HTTP if certificate renewal fails
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${AWS::StackName} API HTTPS with verified origin TLS'
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2and3
+        PriceClass: PriceClass_200
+        ViewerCertificate: {CloudFrontDefaultCertificate: true}
+        Logging:
+          Bucket: !GetAtt AccessLogs.DomainName
+          IncludeCookies: false
+          Prefix: requests/
+        Origins:
+          - Id: Beanstalk
+            DomainName: !Ref OriginDomain
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              HTTPSPort: 443
+              OriginSSLProtocols: [TLSv1.2]
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 5
+        DefaultCacheBehavior:
+          TargetOriginId: Beanstalk
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref CachePolicyId
+          OriginRequestPolicyId: !Ref OriginRequestPolicyId
+          ResponseHeadersPolicyId: !Ref ResponseHeaders
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-response
+              FunctionARN: !GetAtt HttpsRedirects.FunctionARN
+        CustomErrorResponses:
+          - {ErrorCode: 403, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 404, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 500, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 502, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 503, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 504, ErrorCachingMinTTL: 0}
+      Tags: [{Key: Project, Value: ArchReactor}, {Key: Environment, Value: core}]
+Outputs:
+  HttpsUrl:
+    Description: Public HTTPS API URL using the AWS default certificate
+    Value: !Sub 'https://${Distribution.DomainName}'
+  DistributionId:
+    Description: CloudFront distribution identifier
+    Value: !Ref Distribution
+  LogBucket:
+    Description: Private request log bucket with 30-day retention
+    Value: !Ref AccessLogs

@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "change-me-jwt-secret"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    # JSON array, e.g. ["https://app.example.com", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] = []
 
     AWS_REGION: str = "ap-northeast-2"
     AWS_S3_BUCKET: str = ""

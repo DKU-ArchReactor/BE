@@ -1,0 +1,31 @@
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+rule private_encrypted_buckets when %buckets !empty {
+  %buckets.Properties {
+    PublicAccessBlockConfiguration.BlockPublicAcls == true
+    PublicAccessBlockConfiguration.BlockPublicPolicy == true
+    PublicAccessBlockConfiguration.IgnorePublicAcls == true
+    PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+    BucketEncryption exists
+    VersioningConfiguration.Status == 'Enabled'
+  }
+}
+let databases = Resources.*[ Type == 'AWS::RDS::DBInstance' ]
+rule private_encrypted_databases when %databases !empty {
+  %databases.Properties {
+    PubliclyAccessible == false
+    StorageEncrypted == true
+    DeletionProtection == true
+    BackupRetentionPeriod >= 7
+  }
+}
+let registries = Resources.*[ Type == 'AWS::ECR::Repository' ]
+rule immutable_images when %registries !empty {
+  %registries.Properties.ImageTagMutability == 'IMMUTABLE'
+}
+let distributions = Resources.*[ Type == 'AWS::CloudFront::Distribution' ]
+rule https_viewer_and_origin when %distributions !empty {
+  %distributions.Properties.DistributionConfig {
+    DefaultCacheBehavior.ViewerProtocolPolicy IN ['https-only', 'redirect-to-https']
+    Origins[*].CustomOriginConfig.OriginProtocolPolicy == 'https-only'
+  }
+}

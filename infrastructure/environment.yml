@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Single-instance ArchReactor Beanstalk Docker environment using a prebuilt immutable ECR image.
+Metadata:
+  AWSToolsMetrics: {AWSAgentToolkit: aws-cloudformation@3}
+  com.aws.cloudformation.Context:
+    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}]
+Parameters:
+  SolutionStack:
+    Type: String
+    Default: 64bit Amazon Linux 2023 v4.13.11 running Docker
+  BundleBucket: {Type: String}
+  BundleKey: {Type: String}
+  VpcId: {Type: 'AWS::EC2::VPC::Id'}
+  PublicSubnetId: {Type: 'AWS::EC2::Subnet::Id'}
+  AppSecurityGroupId: {Type: 'AWS::EC2::SecurityGroup::Id'}
+  InstanceProfile: {Type: String}
+  ServiceRoleArn: {Type: String}
+  DatabaseUrlSecretArn: {Type: String}
+  JwtSecretArn: {Type: String}
+  ArtifactBucket: {Type: String}
+  OriginTlsHost:
+    Type: String
+    Default: ''
+    Description: Beanstalk hostname to validate through ACME HTTP-01
+    AllowedPattern: '(^$)|([a-zA-Z0-9.-]+\.elasticbeanstalk\.com)'
+  PublicHttpsHost:
+    Type: String
+    Default: ''
+    AllowedPattern: '(^$)|([a-zA-Z0-9.-]+\.cloudfront\.net)'
+  OriginHttpsOnly:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Redirect HTTP API paths only after CloudFront uses HTTPS to the origin
+Resources:
+  Application:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      ApplicationName: archreactor
+      Description: ArchReactor FastAPI backend
+  Version:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName: !Ref Application
+      Description: !Ref BundleKey
+      SourceBundle: {S3Bucket: !Ref BundleBucket, S3Key: !Ref BundleKey}
+  Environment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      ApplicationName: !Ref Application
+      EnvironmentName: archreactor-core
+      CNAMEPrefix: !Sub 'archreactor-core-${AWS::AccountId}'
+      SolutionStackName: !Ref SolutionStack
+      VersionLabel: !Ref Version
+      Tier: {Name: WebServer, Type: Standard}
+      OptionSettings:
+        - {Namespace: 'aws:elasticbeanstalk:environment', OptionName: EnvironmentType, Value: SingleInstance}
+        - {Namespace: 'aws:elasticbeanstalk:environment', OptionName: ServiceRole, Value: !Ref ServiceRoleArn}
+        - {Namespace: 'aws:ec2:instances', OptionName: InstanceTypes, Value: t3.small}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: IamInstanceProfile, Value: !Ref InstanceProfile}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: SecurityGroups, Value: !Ref AppSecurityGroupId}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: DisableIMDSv1, Value: 'true'}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: RootVolumeType, Value: gp3}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: RootVolumeSize, Value: '20'}
+        - {Namespace: 'aws:autoscaling:launchconfiguration', OptionName: SSHSourceRestriction, Value: 'tcp,22,22,127.0.0.1/32'}
+        - {Namespace: 'aws:ec2:vpc', OptionName: VPCId, Value: !Ref VpcId}
+        - {Namespace: 'aws:ec2:vpc', OptionName: Subnets, Value: !Ref PublicSubnetId}
+        - {Namespace: 'aws:ec2:vpc', OptionName: AssociatePublicIpAddress, Value: 'true'}
+        - {Namespace: 'aws:elasticbeanstalk:command', OptionName: DeploymentPolicy, Value: AllAtOnce}
+        - {Namespace: 'aws:elasticbeanstalk:healthreporting:system', OptionName: SystemType, Value: enhanced}
+        - {Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: StreamLogs, Value: 'true'}
+        - {Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: RetentionInDays, Value: '14'}
+        - {Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: DeleteOnTerminate, Value: 'false'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: APP_NAME, Value: ArchReactor}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: DEBUG, Value: 'false'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_REGION, Value: !Ref 'AWS::Region'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_S3_BUCKET, Value: !Ref ArtifactBucket}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173"]'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: S3_PRESIGN_EXPIRES_SECONDS, Value: '300'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ORIGIN_TLS_HOST, Value: !Ref OriginTlsHost}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: PUBLIC_HTTPS_HOST, Value: !Ref PublicHttpsHost}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ORIGIN_HTTPS_ONLY, Value: !Ref OriginHttpsOnly}
+        - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: DATABASE_URL, Value: !Ref DatabaseUrlSecretArn}
+        - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: JWT_SECRET_KEY, Value: !Ref JwtSecretArn}
+      Tags: [{Key: Project, Value: ArchReactor}, {Key: Environment, Value: core}]
+Outputs:
+  Endpoint: {Description: Backend HTTP endpoint, Value: !GetAtt Environment.EndpointURL}
+  EnvironmentName: {Description: Beanstalk environment name, Value: !Ref Environment}

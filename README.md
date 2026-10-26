@@ -1,5 +1,15 @@
 # ArchReactor: An Educational RISC-V Architecture Simulator for Computer Engineering Freshmen
 
+## Backend deployment
+
+`core` 브랜치의 AWS Elastic Beanstalk 배포와 새 계정 설정은
+[배포 가이드](docs/aws/beanstalk.md)를 참고하세요.
+
+- 시연용 HTTPS API: https://d1j3nkcez6kncs.cloudfront.net/
+- Swagger: https://d1j3nkcez6kncs.cloudfront.net/docs
+
+브라우저→CloudFront→Beanstalk 서버까지 HTTPS이며, 원본 인증서는 자동 갱신됩니다.
+
 **ArchReactor** is an educational RISC-V architecture simulation platform  
 designed for computer engineering freshmen.
 
@@ -75,6 +85,7 @@ ArchReactor is built with three main components:
 cd frontend
 npm install
 npm run dev
+```
 
 
 # BE — ArchReactor Backend

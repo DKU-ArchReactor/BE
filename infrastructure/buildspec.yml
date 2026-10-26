@@ -1,0 +1,21 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - pip install -r requirements-dev.txt
+  pre_build:
+    commands:
+      - docker info
+      - docker run -d --name migration-test -e POSTGRES_PASSWORD=test-password -e POSTGRES_DB=archreactor_test -p 127.0.0.1:5432:5432 postgres:16
+      - timeout 60 sh -c 'until docker exec migration-test pg_isready -U postgres; do sleep 2; done'
+      - TEST_DATABASE_URL=postgresql://postgres:test-password@127.0.0.1:5432/archreactor_test pytest
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "${REPOSITORY_URI%%/*}"
+  build:
+    commands:
+      - docker build --platform linux/amd64 -f Dockerfile.prod -t "$REPOSITORY_URI:$IMAGE_TAG" .
+  post_build:
+    commands:
+      - test "$CODEBUILD_BUILD_SUCCEEDING" = 1
+      - docker push "$REPOSITORY_URI:$IMAGE_TAG"
