@@ -28,7 +28,8 @@
       "Effect": "Allow",
       "Action": [
         "s3:GetBucketLocation",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:GetBucketAcl"
       ],
       "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392"
     },
@@ -37,7 +38,9 @@
       "Effect": "Allow",
       "Action": [
         "s3:GetObject",
-        "s3:PutObject"
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:PutObjectVersionAcl"
       ],
       "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/archreactor/*"
     },
@@ -46,7 +49,9 @@
       "Effect": "Allow",
       "Action": [
         "s3:GetObject",
-        "s3:GetObjectAcl"
+        "s3:GetObjectAcl",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl"
       ],
       "Resource": [
         "arn:aws:s3:::elasticbeanstalk-ap-northeast-2/environments/*",
