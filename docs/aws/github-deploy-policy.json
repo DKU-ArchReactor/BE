@@ -94,7 +94,9 @@
         "cloudformation:DescribeStacks",
         "cloudformation:DescribeStackResource",
         "cloudformation:DescribeStackResources",
-        "cloudformation:UpdateStack"
+        "cloudformation:UpdateStack",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStackResources"
       ],
       "Resource": "arn:aws:cloudformation:ap-northeast-2:242925688392:stack/awseb-e-nygnvhdugs-stack/*"
     },
@@ -121,6 +123,24 @@
         "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/resources/environments/e-nygnvhdugs/*",
         "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/resources/_runtime/_embedded_extensions/archreactor/*"
       ]
+    },
+    {
+      "Sid": "ReadDeploymentLaunchTemplates",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeLaunchTemplates",
+        "ec2:DescribeLaunchTemplateVersions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CoordinateEnvironmentDeployment",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:SuspendProcesses",
+        "autoscaling:ResumeProcesses"
+      ],
+      "Resource": "arn:aws:autoscaling:ap-northeast-2:242925688392:autoScalingGroup:aee11d67-63c5-4730-b811-3edc41f49181:autoScalingGroupName/awseb-e-nygnvhdugs-stack-AWSEBAutoScalingGroup-QXskov5g03dE"
     }
   ]
 }
