@@ -214,7 +214,7 @@
                   "Resource": "*"
                 },
                 {
-                  "Sid": "StageEnvironmentVersion",
+                  "Sid": "StageApplicationRuntime",
                   "Effect": "Allow",
                   "Action": [
                     "s3:PutObject",
@@ -224,9 +224,14 @@
                     "s3:PutObjectVersionAcl",
                     "s3:DeleteObject"
                   ],
-                  "Resource": {
-                    "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/resources/environments/e-nygnvhdugs/*"
-                  }
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/resources/environments/e-nygnvhdugs/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/resources/_runtime/_embedded_extensions/archreactor/*"
+                    }
+                  ]
                 }
               ]
             }

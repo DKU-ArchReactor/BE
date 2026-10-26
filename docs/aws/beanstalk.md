@@ -149,7 +149,7 @@ Beanstalk에서 `AWS_ACCESS_KEY_ID`와 `AWS_SECRET_ACCESS_KEY`는 등록하지 �
 
 ### GitHub 배포 역할
 
-현재 역할과 OIDC 공급자는 `archreactor-github-oidc` CloudFormation 스택으로 관리한다. 아래 콘솔 절차는 참고용이며 같은 역할을 중복 생성하지 않는다. 변경은 [github-oidc.json](../../infrastructure/github-oidc.json)에 반영하고 change set을 적용한다. 역할 세션은 최대 1시간이며 ECR 이미지 푸시, 배포 ZIP 저장, 기존 Beanstalk 환경과 해당 `awseb-e-nygnvhdugs-stack` 업데이트로 권한을 제한했다. IAM 관리나 Secrets Manager 비밀값 읽기 권한은 부여하지 않는다. Beanstalk 내부 버전 복사는 배포 버킷의 `resources/environments/e-nygnvhdugs/*`에만 허용하며, 필요한 S3 ACL 조회와 Auto Scaling 상태 조회를 포함한다. 환경을 재생성해 ID가 달라지면 환경 경로와 내부 스택 ARN 제한을 함께 갱신한다.
+현재 역할과 OIDC 공급자는 `archreactor-github-oidc` CloudFormation 스택으로 관리한다. 아래 콘솔 절차는 참고용이며 같은 역할을 중복 생성하지 않는다. 변경은 [github-oidc.json](../../infrastructure/github-oidc.json)에 반영하고 change set을 적용한다. 역할 세션은 최대 1시간이며 ECR 이미지 푸시, 배포 ZIP 저장, 기존 Beanstalk 환경과 해당 `awseb-e-nygnvhdugs-stack` 업데이트로 권한을 제한했다. IAM 관리나 Secrets Manager 비밀값 읽기 권한은 부여하지 않는다. Beanstalk 내부 버전 복사는 배포 버킷의 `resources/environments/e-nygnvhdugs/*`와 TLS 훅을 저장하는 `resources/_runtime/_embedded_extensions/archreactor/*`에만 허용하며, 필요한 S3 ACL 조회와 Auto Scaling 상태 조회를 포함한다. 환경을 재생성해 ID가 달라지면 환경 경로와 내부 스택 ARN 제한을 함께 갱신한다.
 
 1. IAM → Identity providers → Add provider → OpenID Connect.
 2. Provider URL: `https://token.actions.githubusercontent.com`, Audience: `sts.amazonaws.com`.
