@@ -121,7 +121,8 @@
                   "Action": [
                     "s3:GetBucketLocation",
                     "s3:ListBucket",
-                    "s3:GetBucketAcl"
+                    "s3:GetBucketAcl",
+                    "s3:GetBucketPolicy"
                   ],
                   "Resource": {
                     "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}"

@@ -29,7 +29,8 @@
       "Action": [
         "s3:GetBucketLocation",
         "s3:ListBucket",
-        "s3:GetBucketAcl"
+        "s3:GetBucketAcl",
+        "s3:GetBucketPolicy"
       ],
       "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392"
     },
