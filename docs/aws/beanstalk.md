@@ -1,14 +1,14 @@
 # core 브랜치의 Elastic Beanstalk 배포
 
 대상은 **Blank Canvas 배포 계정 `242925688392` / 서울 `ap-northeast-2`**이다.
-현재 작업 폴더는 `core` 브랜치이다. 최초 배포는 검토한 로컬 소스를 CodeBuild에서 테스트·빌드하고 ECR 이미지로 배포한다. GitHub Actions 자동 배포는 별도 OIDC 역할·저장소 변수 설정과 커밋·푸시 후 사용할 수 있다.
+현재 작업 폴더는 `core` 브랜치이다. 최초 배포는 검토한 로컬 소스를 CodeBuild에서 테스트·빌드하고 ECR 이미지로 배포한다. GitHub Actions는 OIDC 배포 역할과 저장소 변수로 인증하며 `core` push 시 테스트 후 배포한다.
 
 ## 배포 결과 (2026-10-26)
 
 - HTTPS API: https://d1j3nkcez6kncs.cloudfront.net/
 - HTTPS Swagger: https://d1j3nkcez6kncs.cloudfront.net/docs
 - 기존 HTTP 원본: http://archreactor-core-242925688392.ap-northeast-2.elasticbeanstalk.com/
-- 환경: `archreactor-core` (`e-nygnvhdugs`), `Ready / Green / Ok` 확인. 네 CloudFormation 스택의 생성·업데이트 완료를 확인했다.
+- 환경: `archreactor-core` (`e-nygnvhdugs`), `Ready / Green / Ok` 확인. CloudFormation 스택의 생성·업데이트 완료를 확인했다.
 - 이미지: `242925688392.dkr.ecr.ap-northeast-2.amazonaws.com/capstone/archreactor:core-14f1dbc95f81556e`
 - 이미지 digest: `sha256:bc8598bca6e77868beea9959d8ea2adab2c94a00a3ee062227c2642a4964d47e`
 - 초기 앱 버전: `archreactor-environment-version-loakzvqhlxdc`.
@@ -19,7 +19,7 @@
 
 테스트용 사용자 `deploy_smoke_302e4ee33e9b`와 기본 프로젝트는 DB에 남아 있다. 임시 비밀번호·토큰은 저장하지 않았으며 테스트 소스와 연관 빌드 DB 레코드는 삭제했다. 다운로드 확인에 사용한 작은 S3 결과물은 남아 있다. 검증 기록과 배포 상태는 Git에서 제외한 로컬 `dist/smoke-result.json`, `dist/deploy-state.json`에 보관한다.
 
-CloudFront와 원본 서버 사이에도 공인 인증서를 적용해 **브라우저→CloudFront→서버까지 HTTPS**로 연결한다. API/S3 CORS는 현재 `http://localhost:5173`만 등록했다. GitHub OIDC 역할·저장소 변수는 아직 연결하지 않았으며, 자동 배포를 사용하려면 아래 설정이 필요하다.
+CloudFront와 원본 서버 사이에도 공인 인증서를 적용해 **브라우저→CloudFront→서버까지 HTTPS**로 연결한다. API/S3 CORS는 현재 `http://localhost:5173`만 등록했다. GitHub OIDC 역할과 비민감 Repository Variables 6개를 연결했다. DB 암호와 JWT 키는 기존 Secrets Manager 참조를 유지하며 GitHub에 저장하지 않는다.
 
 ## 도메인 구매 없이 전체 외부 구간 HTTPS
 
@@ -100,6 +100,7 @@ Blank Canvas에만 서울을 허용하는 변경안과 원본 백업은 로컬 `
 | `archreactor-runtime` | [runtime.yml](../../infrastructure/runtime.yml) | VPC, private RDS, 결과물 S3, Secrets Manager, KMS, 런타임 역할 |
 | `archreactor-environment` | [environment.yml](../../infrastructure/environment.yml) | Beanstalk 앱·초기 버전·환경 |
 | `archreactor-https` | [https.yml](../../infrastructure/https.yml) | CloudFront HTTPS, 응답 헤더, 접근 로그 |
+| `archreactor-github-oidc` | [github-oidc.json](../../infrastructure/github-oidc.json) | GitHub OIDC 공급자, core 전용 배포 역할 |
 
 사용자가 선택한 시연용 구성은 **t3.small 1대 + PostgreSQL 16 / db.t4g.micro Single-AZ**이다. RDS는 private subnet에 있고 TLS를 강제하며, 앱 보안 그룹에서만 5432 포트 접근을 허용한다. DB 암호화, 7일 백업, 삭제 방지를 설정했다. NAT Gateway와 로드밸런서는 만들지 않으며, 공개 API는 CloudFront HTTPS 주소로 제공하며 원본도 HTTPS로 연결한다. 배포·장애 시 중단될 수 있다.
 
@@ -147,6 +148,8 @@ IAM → Roles → Create role → AWS service → EC2로 `archreactor-eb-ec2-rol
 Beanstalk에서 `AWS_ACCESS_KEY_ID`와 `AWS_SECRET_ACCESS_KEY`는 등록하지 않는다. boto3와 ECR pull은 인스턴스 역할을 사용한다.
 
 ### GitHub 배포 역할
+
+현재 역할과 OIDC 공급자는 `archreactor-github-oidc` CloudFormation 스택으로 관리한다. 아래 콘솔 절차는 참고용이며 같은 역할을 중복 생성하지 않는다. 변경은 [github-oidc.json](../../infrastructure/github-oidc.json)에 반영하고 change set을 적용한다. 역할 세션은 최대 1시간이며 ECR 이미지 푸시, 배포 ZIP 저장, 기존 Beanstalk 환경과 해당 `awseb-e-nygnvhdugs-stack` 업데이트로 권한을 제한했다. IAM 관리나 Secrets Manager 비밀값 읽기 권한은 부여하지 않는다. Beanstalk 내부 버전 복사는 배포 버킷의 `resources/environments/e-nygnvhdugs/*`에만 허용하며, 필요한 S3 ACL 조회와 Auto Scaling 상태 조회를 포함한다. 환경을 재생성해 ID가 달라지면 환경 경로와 내부 스택 ARN 제한을 함께 갱신한다.
 
 1. IAM → Identity providers → Add provider → OpenID Connect.
 2. Provider URL: `https://token.actions.githubusercontent.com`, Audience: `sts.amazonaws.com`.
@@ -231,7 +234,7 @@ Elastic Beanstalk → Create application/environment에서 다음을 선택한�
 
 ## 5. GitHub 저장소 변수 설정
 
-실제로 배포하는 저장소의 Settings → Secrets and variables → Actions → **Variables**에 등록한다.
+`DKU-ArchReactor/BE`의 Settings → Secrets and variables → Actions → **Variables**에 아래 6개를 등록했다. 모두 비민감 설정이며 액세스 키·DB 비밀번호·JWT 키를 Variables에 넣지 않는다.
 
 | Repository variable | 값 |
 | --- | --- |
@@ -246,6 +249,8 @@ Elastic Beanstalk → Create application/environment에서 다음을 선택한�
 기존 Secrets의 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`는 새 workflow에서 참조하지 않는다. 다른 workflow에서 사용 중인지 확인한 후 필요 없으면 GitHub에서 제거하고 이전 계정의 불필요한 키도 비활성화한다.
 
 ## 6. GitHub Actions 배포와 확인
+
+2026-10-26 OIDC 역할과 Repository Variables 연결을 완료했다. OIDC 인증, 계정 확인, 이미지 빌드와 ECR 업로드를 검증했으며 Beanstalk 내부 복사에 필요한 S3 ACL·환경 경로 쓰기 및 Auto Scaling 조회 권한을 반영했다. 실제 실행 결과는 [Actions](https://github.com/DKU-ArchReactor/BE/actions/workflows/deploy.yml)에서 커밋별로 확인한다. 배포 전후 현재 버전과 `Ready/Green`, 공개 HTTPS 응답을 검사한다.
 
 이 변경을 **설정을 등록한 저장소의 `core` 브랜치에 커밋·푸시**하면 자동으로 실행된다.
 
@@ -297,3 +302,11 @@ HTTPS 프론트의 API 주소는 `https://d1j3nkcez6kncs.cloudfront.net`으로 �
 - [Beanstalk service role](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/concepts-roles-service.html)
 - [GitHub OIDC와 AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)
 - [Alembic 연결 공유](https://alembic.sqlalchemy.org/en/latest/cookbook.html#sharing-a-connection-across-one-or-more-programmatic-migration-commands)
+
+## 독립 시뮬레이터 CORE 연동
+
+`archreactor-core`는 계속 **BE core 브랜치의 Beanstalk 환경**이다.
+시뮬레이터는 별도 `archreactor-simulator` ECS 서비스로 배포한다.
+자세한 계약·환경·검증 기록은 [core-grpc.md](core-grpc.md)를 참고한다.
+BE 이미지에는 gRPC 계약 생성 코드만 포함하며 CORE 구현을 import하지 않는다.
+`CoreGrpcTarget` CloudFormation 매개변수로 내부 서비스 주소를 관리한다.

@@ -45,7 +45,8 @@
       "Sid": "ReadBeanstalkTemplates",
       "Effect": "Allow",
       "Action": [
-        "s3:GetObject"
+        "s3:GetObject",
+        "s3:GetObjectAcl"
       ],
       "Resource": [
         "arn:aws:s3:::elasticbeanstalk-ap-northeast-2/environments/*",
@@ -89,7 +90,24 @@
         "cloudformation:DescribeStackResources",
         "cloudformation:UpdateStack"
       ],
-      "Resource": "arn:aws:cloudformation:ap-northeast-2:242925688392:stack/awseb-*/*"
+      "Resource": "arn:aws:cloudformation:ap-northeast-2:242925688392:stack/awseb-e-nygnvhdugs-stack/*"
+    },
+    {
+      "Sid": "ReadDeploymentCapacity",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:DescribeAutoScalingGroups"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "StageEnvironmentVersion",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:PutObjectAcl"
+      ],
+      "Resource": "arn:aws:s3:::elasticbeanstalk-ap-northeast-2-242925688392/resources/environments/e-nygnvhdugs/*"
     }
   ]
 }

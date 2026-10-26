@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -23,6 +24,7 @@ class BuildCompileRequest(BaseModel):
         max_length=16,
         description="언어 식별자 (예: 'c', 'asm'). content 모드에서 필수.",
     )
+    compile_profile: Literal["rv32im", "native"] = "rv32im"
     compiler_opt: str = Field(
         ...,
         max_length=255,

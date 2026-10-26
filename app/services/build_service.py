@@ -1,4 +1,6 @@
 import shlex
+import os
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -10,6 +12,10 @@ from app.services.binary import process_binary
 
 COMPILE_TIMEOUT_SEC = 10
 SUPPORTED_LANGS = {"c", "asm"}
+
+
+class UnsupportedOptionsError(ValueError):
+    pass
 
 
 class UnsupportedLanguageError(Exception):
@@ -24,7 +30,7 @@ class CompileResult:
     binary: bytes | None
 
 
-def compile_source(content: str, lang: str, compiler_opt: str) -> CompileResult:
+def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: str = "native") -> CompileResult:
     """소스를 임시 디렉토리에서 gcc로 컴파일해 어셈블리/ELF/로그를 반환."""
     lang = lang.lower()
     if lang not in SUPPORTED_LANGS:
@@ -32,6 +38,14 @@ def compile_source(content: str, lang: str, compiler_opt: str) -> CompileResult:
 
     opt_tokens = shlex.split(compiler_opt) if compiler_opt else []
 
+    if any(not re.fullmatch(r"-(?:O[0-3sg]|Wall|Wextra|Werror|g|std=(?:c99|c11|c17|gnu11))", token) for token in opt_tokens):
+        raise UnsupportedOptionsError("Unsupported compiler option")
+    if compile_profile not in {"native", "rv32im"}:
+        raise UnsupportedOptionsError("Unsupported compile profile")
+    compiler = os.environ.get("RISCV_CC", "riscv64-unknown-elf-gcc") if compile_profile == "rv32im" else "gcc"
+    profile_flags = (["-march=rv32im", "-mabi=ilp32", "-O0", "-ffreestanding", "-nostdlib",
+                      "-nostartfiles", "-fno-pic", "-fno-pie", "-fno-builtin", "-fno-inline",
+                      "-msmall-data-limit=0"] if compile_profile == "rv32im" else [])
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         src_name = "source.c" if lang == "c" else "source.s"
@@ -45,7 +59,7 @@ def compile_source(content: str, lang: str, compiler_opt: str) -> CompileResult:
 
         # 어셈블리 산출물 생성 (C는 -S, asm은 입력 자체가 어셈블리)
         if lang == "c":
-            asm_cmd = ["gcc", "-S", *opt_tokens, "-o", str(asm_path), str(src_path)]
+            asm_cmd = [compiler, *profile_flags, "-S", *opt_tokens, "-o", str(asm_path), str(src_path)]
             asm_proc = _run(asm_cmd)
             log_parts.append(_format_log(asm_cmd, asm_proc))
             if asm_proc.returncode != 0:
@@ -57,7 +71,15 @@ def compile_source(content: str, lang: str, compiler_opt: str) -> CompileResult:
                 )
 
         # ELF 바이너리 생성
-        bin_cmd = ["gcc", *opt_tokens, "-o", str(elf_path), str(src_path)]
+        link_flags = []
+        inputs = [str(src_path)]
+        if compile_profile == "rv32im":
+            runtime = Path(__file__).parent / "rv32im"
+            link_flags = ["-Wl,--no-relax", "-Wl,-T," + str(runtime / "link.ld")]
+            # C entry is _start -> main -> ecall 10; assembly defines _start itself.
+            if lang == "c":
+                inputs.insert(0, str(runtime / "start.S"))
+        bin_cmd = [compiler, *profile_flags, *opt_tokens, *link_flags, "-o", str(elf_path), *inputs]
         bin_proc = _run(bin_cmd)
         log_parts.append(_format_log(bin_cmd, bin_proc))
         if bin_proc.returncode != 0:

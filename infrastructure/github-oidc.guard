@@ -1,0 +1,17 @@
+rule github_identity_is_scoped {
+  Resources.GitHubProvider.Properties {
+    Url == 'https://token.actions.githubusercontent.com'
+    ClientIdList == ['sts.amazonaws.com']
+  }
+  Resources.DeployRole.Properties {
+    MaxSessionDuration <= 3600
+    AssumeRolePolicyDocument.Statement[*] {
+      Effect == 'Allow'
+      Action == 'sts:AssumeRoleWithWebIdentity'
+      Condition.StringEquals {
+        "token.actions.githubusercontent.com:aud" == 'sts.amazonaws.com'
+        "token.actions.githubusercontent.com:sub" == 'repo:DKU-ArchReactor/BE:ref:refs/heads/core'
+      }
+    }
+  }
+}

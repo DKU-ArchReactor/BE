@@ -18,6 +18,10 @@ Parameters:
   DatabaseUrlSecretArn: {Type: String}
   JwtSecretArn: {Type: String}
   ArtifactBucket: {Type: String}
+  CoreGrpcTarget:
+    Type: String
+    Default: ''
+    Description: Private CORE gRPC endpoint; independent ECS image updates preserve this name
   OriginTlsHost:
     Type: String
     Default: ''
@@ -73,6 +77,8 @@ Resources:
         - {Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: DeleteOnTerminate, Value: 'false'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: APP_NAME, Value: ArchReactor}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: DEBUG, Value: 'false'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TARGET, Value: !Ref CoreGrpcTarget}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TIMEOUT_SECONDS, Value: '12'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_REGION, Value: !Ref 'AWS::Region'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_S3_BUCKET, Value: !Ref ArtifactBucket}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173"]'}

@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # JSON array, e.g. ["https://app.example.com", "http://localhost:5173"]
     CORS_ORIGINS: list[str] = []
 
+    CORE_GRPC_TARGET: str = ""
+    CORE_GRPC_TIMEOUT_SECONDS: float = 12.0
+    CORE_RESULT_SCHEMA_MAJOR: str = "1"
+
     AWS_REGION: str = "ap-northeast-2"
     AWS_S3_BUCKET: str = ""
     AWS_ACCESS_KEY_ID: str | None = None

@@ -4,6 +4,7 @@ phases:
     runtime-versions:
       python: 3.11
     commands:
+      - apt-get update && apt-get install -y gcc-riscv64-unknown-elf
       - pip install -r requirements-dev.txt
   pre_build:
     commands:

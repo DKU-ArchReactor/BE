@@ -67,8 +67,9 @@ def _compile_from_file(
             content=file.content,
             lang=file.lang,
             compiler_opt=body.compiler_opt,
+            compile_profile=body.compile_profile,
         )
-    except build_service.UnsupportedLanguageError as e:
+    except (build_service.UnsupportedLanguageError, build_service.UnsupportedOptionsError) as e:
         db.rollback()
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
@@ -97,8 +98,9 @@ def _compile_from_content(body: BuildCompileRequest) -> BuildCompileResponse:
             content=body.content,
             lang=body.lang,
             compiler_opt=body.compiler_opt,
+            compile_profile=body.compile_profile,
         )
-    except build_service.UnsupportedLanguageError as e:
+    except (build_service.UnsupportedLanguageError, build_service.UnsupportedOptionsError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
     prefix = f"builds/anon/{uuid.uuid4()}"

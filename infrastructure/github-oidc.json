@@ -1,0 +1,250 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "GitHub Actions OIDC deployment access restricted to the ArchReactor core branch; no long-lived access keys.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "docs/aws/beanstalk.md",
+          "has": "GitHub OIDC deployment and repository variables"
+        }
+      ]
+    }
+  },
+  "Parameters": {
+    "RoleName": {
+      "Type": "String",
+      "Default": "archreactor-github-deploy",
+      "AllowedPattern": "[A-Za-z0-9+=,.@_-]{1,64}"
+    }
+  },
+  "Resources": {
+    "GitHubProvider": {
+      "Type": "AWS::IAM::OIDCProvider",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Exchange GitHub workflow identity for short-lived STS credentials",
+          "must": [
+            "Use the official GitHub issuer and STS audience; do not create access keys"
+          ]
+        }
+      },
+      "Properties": {
+        "Url": "https://token.actions.githubusercontent.com",
+        "ClientIdList": [
+          "sts.amazonaws.com"
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ArchReactor"
+          }
+        ]
+      }
+    },
+    "DeployRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Deploy tested core commits to the existing demo environment",
+          "must": [
+            "Trust only DKU-ArchReactor/BE refs/heads/core with sts.amazonaws.com audience",
+            "Do not grant secret reads or IAM administration",
+            "Scope deployment writes to the existing application resources"
+          ]
+        }
+      },
+      "Properties": {
+        "RoleName": {
+          "Ref": "RoleName"
+        },
+        "Description": "OIDC deployment role for DKU-ArchReactor/BE core",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": {
+                  "Ref": "GitHubProvider"
+                }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:DKU-ArchReactor/BE:ref:refs/heads/core"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "DeployCoreBackend",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "EcrLogin",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "PushApplicationImage",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:PutImage",
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/capstone/archreactor"
+                  }
+                },
+                {
+                  "Sid": "ReadDeployBucket",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}"
+                  }
+                },
+                {
+                  "Sid": "UploadApplicationBundle",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/archreactor/*"
+                  }
+                },
+                {
+                  "Sid": "ReadBeanstalkTemplates",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:GetObjectAcl"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}/environments/*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "ReadEnvironments",
+                  "Effect": "Allow",
+                  "Action": [
+                    "elasticbeanstalk:DescribeEnvironments"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "RegisterVersion",
+                  "Effect": "Allow",
+                  "Action": [
+                    "elasticbeanstalk:CreateApplicationVersion"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:elasticbeanstalk:${AWS::Region}:${AWS::AccountId}:application/archreactor"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:elasticbeanstalk:${AWS::Region}:${AWS::AccountId}:applicationversion/archreactor/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "DeployToEnvironment",
+                  "Effect": "Allow",
+                  "Action": [
+                    "elasticbeanstalk:UpdateEnvironment"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:elasticbeanstalk:${AWS::Region}:${AWS::AccountId}:environment/archreactor/archreactor-core"
+                  }
+                },
+                {
+                  "Sid": "UpdateBeanstalkStack",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:GetTemplate",
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:DescribeStackResource",
+                    "cloudformation:DescribeStackResources",
+                    "cloudformation:UpdateStack"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/awseb-e-nygnvhdugs-stack/*"
+                  }
+                },
+                {
+                  "Sid": "ReadDeploymentCapacity",
+                  "Effect": "Allow",
+                  "Action": [
+                    "autoscaling:DescribeAutoScalingGroups"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "StageEnvironmentVersion",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:PutObjectAcl"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::elasticbeanstalk-${AWS::Region}-${AWS::AccountId}/resources/environments/e-nygnvhdugs/*"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "ArchReactor"
+          },
+          {
+            "Key": "Environment",
+            "Value": "core"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "DeployRoleArn": {
+      "Description": "Non-secret GitHub Actions AWS_ROLE_ARN variable",
+      "Value": {
+        "Fn::GetAtt": [
+          "DeployRole",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

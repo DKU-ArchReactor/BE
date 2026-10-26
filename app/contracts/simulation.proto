@@ -1,0 +1,34 @@
+syntax = "proto3";
+package archreactor.v1;
+
+// v1 is additive-only. Never reuse field numbers or change existing semantics.
+service Simulator {
+  rpc RunSimulation(RunSimulationRequest) returns (RunSimulationResponse);
+}
+enum ExecutionMode {
+  EXECUTION_MODE_UNSPECIFIED = 0;
+  SINGLE = 1;
+  PIPELINE = 2;
+}
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNSPECIFIED = 0;
+  COMPLETED = 1;
+  CYCLE_LIMIT = 2;
+  SIMULATION_ERROR = 3;
+}
+message RunSimulationRequest {
+  string request_id = 1;
+  bytes elf = 2;
+  ExecutionMode mode = 3;
+  uint32 max_cycles = 4;
+}
+message RunSimulationResponse {
+  string request_id = 1;
+  string execution_id = 2;
+  ExecutionStatus status = 3;
+  // UTF-8 JSON: unchanged run_simulation result, including summary, history,
+  // console_output, simulator and program. Governed by result_schema_version.
+  bytes result_json = 4;
+  string core_version = 5;
+  string result_schema_version = 6;
+}

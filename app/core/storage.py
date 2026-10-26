@@ -37,3 +37,14 @@ def presigned_get_url(key: str, expires: int | None = None) -> str:
         Params={"Bucket": settings.AWS_S3_BUCKET, "Key": key},
         ExpiresIn=expires or settings.S3_PRESIGN_EXPIRES_SECONDS,
     )
+
+
+def download_bytes(key: str, max_bytes: int) -> bytes:
+    response = _client().get_object(Bucket=settings.AWS_S3_BUCKET, Key=key)
+    with response['Body'] as body:
+        if response['ContentLength'] > max_bytes:
+            raise ValueError('Artifact exceeds input limit')
+        data = body.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise ValueError('Artifact exceeds input limit')
+        return data
