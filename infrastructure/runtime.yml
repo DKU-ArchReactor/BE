@@ -200,7 +200,7 @@ Resources:
         RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
-          - AllowedOrigins: ['http://localhost:5173']
+          - AllowedOrigins: ['http://localhost:5173', 'http://archreactor.s3-website-us-east-1.amazonaws.com']
             AllowedMethods: [GET, HEAD]
             AllowedHeaders: ['*']
             ExposedHeaders: [ETag]

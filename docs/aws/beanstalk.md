@@ -19,7 +19,7 @@
 
 테스트용 사용자 `deploy_smoke_302e4ee33e9b`와 기본 프로젝트는 DB에 남아 있다. 임시 비밀번호·토큰은 저장하지 않았으며 테스트 소스와 연관 빌드 DB 레코드는 삭제했다. 다운로드 확인에 사용한 작은 S3 결과물은 남아 있다. 검증 기록과 배포 상태는 Git에서 제외한 로컬 `dist/smoke-result.json`, `dist/deploy-state.json`에 보관한다.
 
-CloudFront와 원본 서버 사이에도 공인 인증서를 적용해 **브라우저→CloudFront→서버까지 HTTPS**로 연결한다. API/S3 CORS는 현재 `http://localhost:5173`만 등록했다. GitHub OIDC 역할과 비민감 Repository Variables 6개를 연결했다. DB 암호와 JWT 키는 기존 Secrets Manager 참조를 유지하며 GitHub에 저장하지 않는다.
+CloudFront와 원본 서버 사이에도 공인 인증서를 적용해 **브라우저→CloudFront→서버까지 HTTPS**로 연결한다. API/S3 CORS는 `http://localhost:5173`와 `http://archreactor.s3-website-us-east-1.amazonaws.com`을 허용한다. 프론트 웹사이트의 HTTP origin도 HTTPS API와 S3 presigned URL을 사용한다. GitHub OIDC 역할과 비민감 Repository Variables 6개를 연결했다. DB 암호와 JWT 키는 기존 Secrets Manager 참조를 유지하며 GitHub에 저장하지 않는다.
 
 ## 도메인 구매 없이 전체 외부 구간 HTTPS
 
