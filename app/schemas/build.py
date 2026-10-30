@@ -58,6 +58,12 @@ class BuildCompileResponse(BaseModel):
         None, description="ELF 바이너리 다운로드용 S3 presigned URL (실패 시 null)"
     )
     log: str | None = Field(None, description="컴파일 stdout/stderr 인라인")
+    simulation_token: str | None = Field(
+        None, description="직접 입력 RV32IM 빌드 성공 시 발급되는 익명 시뮬레이션 토큰"
+    )
+    simulation_token_expires_in: int | None = Field(
+        None, description="시뮬레이션 토큰 발급 시점부터의 유효 기간(초)"
+    )
 
 
 class ObjdumpResponse(BaseModel):

@@ -53,11 +53,12 @@ def test_rv32im_elf():
 
 
 class FakeCore(rpc.SimulatorServicer):
-    def __init__(self, code=None, schema='1.0'):
-        self.code, self.schema = code, schema
+    def __init__(self, code=None, schema='1.0', metadata=()):
+        self.code, self.schema, self.metadata = code, schema, metadata
     def RunSimulation(self, request, context):
         if self.code:
             context.abort(self.code, 'test')
+        context.set_trailing_metadata(self.metadata)
         return pb.RunSimulationResponse(request_id=request.request_id, execution_id='test', status=pb.COMPLETED,
             core_version='future-compatible-core', result_schema_version=self.schema,
             result_json=json.dumps({'schema_version':self.schema, 'summary':{}, 'history':[], 'console_output':'ok', 'new_field':42}).encode())
@@ -83,3 +84,42 @@ def test_client_mapping(monkeypatch, code, http):
             assert response['result']['new_field'] == 42
     finally:
         server.stop(0).wait()
+
+
+def test_timing_metadata_is_optional_and_sanitized(monkeypatch):
+    server = grpc.server(ThreadPoolExecutor(max_workers=2))
+    rpc.add_SimulatorServicer_to_server(FakeCore(metadata=(
+        ('core-sim', '12.5'), ('core-json', 'nan'), ('core-load', '-1'),
+        ('core-worker', 'invalid'), ('untrusted', 'anything'),
+    )), server)
+    port = server.add_insecure_port('127.0.0.1:0')
+    server.start()
+    monkeypatch.setattr(client.settings, 'CORE_GRPC_TARGET', f'127.0.0.1:{port}')
+    try:
+        timings = {}
+        response = asyncio.run(client.run_simulation(b'elf', 'pipeline', 2, timings=timings))
+        assert response['result']['new_field'] == 42
+        assert timings['core-sim'] == 12.5
+        assert timings['core-rpc'] > 0 and timings['be-json-decode'] >= 0
+        assert not {'core-json', 'core-load', 'core-worker', 'untrusted'} & timings.keys()
+        assert 'timings' not in response['result']
+    finally:
+        server.stop(0).wait()
+
+
+def test_http_timing_header_preserves_json(monkeypatch):
+    from app.routers import simulation as route
+    expected = {'execution_status': 'COMPLETED', 'result': {'console_output': '출력', 'history': []}}
+    async def fake_run(elf, mode, max_cycles, disconnected, timings):
+        assert elf == b'elf'
+        timings.update({'core-sim': 1.5, 'core-rpc': 3})
+        return expected
+    monkeypatch.setattr(route, 'owned_binary', lambda *args: 'builds/test/binary.elf')
+    monkeypatch.setattr(route, 'download_bytes', lambda *args: b'elf')
+    monkeypatch.setattr(route, 'run_simulation', fake_run)
+    response = asyncio.run(route.simulate(route.SimulationRequest(build_id=uuid.uuid4()),
+                                          SimpleNamespace(is_disconnected=None), None, SimpleNamespace(user_id='owner')))
+    assert json.loads(response.body) == expected
+    header = response.headers['server-timing']
+    assert 'core-sim;dur=1.500' in header
+    assert all(key + ';dur=' in header for key in ('be-handler', 's3-read', 'be-lookup', 'be-json-prepare', 'be-json-encode'))
