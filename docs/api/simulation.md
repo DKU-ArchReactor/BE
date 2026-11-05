@@ -69,43 +69,55 @@ pipeline-style single results, incompatible schema majors, contradictory status
 or history counts, and non-finite JSON constants. It does not reinterpret a
 pipeline result as single mode.
 
-## CORE service setup
+## Existing CORE service
 
-Use the CORE `feat/simulation-grpc-api` change (targeting CORE `develop`), which
-adds `server.grpc_server` and `Dockerfile.server`. Pin the reviewed CORE commit
-for builds. The previous public CORE `main` does not contain this server or the
-new single engine. The separate historical `dist/CORE` mentioned in AWS docs is
-not a dependency or source of truth for this implementation.
+Reuse the deployed `archreactor.v1` service and its existing BE connection
+(`CORE_GRPC_TARGET`). Both `SINGLE` and `PIPELINE` already work over this contract.
+No separate single-cycle gRPC service or new `/single` HTTP endpoint is required.
 
-1. In CORE, install `requirements-server.txt` and run `python -m server.grpc_server`.
-2. In the BE process set `CORE_GRPC_TARGET=127.0.0.1:50051` (or the private CORE address).
-3. Install BE dependencies and start the existing `uvicorn app.main:app` service.
-4. Use an owned saved build or an anonymous RV32IM compile token to call `/run`.
+On 2026-11-05 the existing public API compiled `int main(void) { return 42; }`
+and successfully ran the same ELF in both modes. Both returned HTTP 200 and
+`COMPLETED`, a0=42, and 14 retired instructions. The existing engine used 88
+single clocks / 25 pipeline clocks. Each complete `result` dictionary exactly
+matched a direct run of the documented baseline engine `1bf2957`. The deployed
+version reported `core-1bf2957eb2d6-7b39acaa099a3b65`.
 
-The server handles `SINGLE` and `PIPELINE` over the existing protobuf contract.
-No new `/single` endpoint, DB migration, FE modification, or deployment is needed
-to review this API patch. Running a deployed integration still requires the new
-CORE service and the existing database/storage configuration.
+The new engine in CORE `develop` preserves `create_state(..., mode=...)`,
+`run_simulation`, and `delete_state`. Update those engine files within the
+existing service's build/deployment, preserving its transport and controls.
+The separate server implementation in CORE PR #5 was closed as redundant.
+
+The original service source/build package was not recovered locally, and the
+required AWS profile was unavailable for inspecting its image/source archive.
+The operational API probe verifies existing behavior, not the new engine's
+deployment. Recover that service's original build source before updating it;
+do not replace its adapter on the assumption that the public engine repo is a
+complete snapshot of the deployed container. CORE `main` still excludes the new
+engine; pin a reviewed `develop` commit when preparing the update.
+
+Existing DB, S3, authentication and private network configuration remain in use.
 
 ## Local integration tests
 
 From this BE checkout, using one environment containing BE test dependencies and
-CORE server runtime dependencies:
+the real CORE engine's test dependency:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
-python -m pip install -r ../CORE/requirements-server.txt
 $env:DEBUG = 'false'
 $env:CORE_SOURCE = (Resolve-Path ../CORE).Path
 python -m pytest -q -rs
 ```
 
-The tests start a real CORE gRPC server subprocess from `CORE_SOURCE` and exercise
-FastAPI routing, the BE client, worker execution, mode/status mapping, and full
-result preservation. S3 downloads/DB ownership lookups use local boundary stubs;
-anonymous auth rules are also covered by existing tests. Reference ELF execution
-is real. `program2.elf` completes 97 instructions in single 97 clocks / pipeline
-134 clocks, with matching final registers, memory, and console output.
+The tests start `tests/helpers/core_rpc_fixture.py`, a test-only RPC fixture
+around actual engine execution from `CORE_SOURCE`. It is not a production CORE
+server and must not be deployed. This exercises FastAPI routing, the BE client,
+the unchanged wire contract, actual engine execution, mode/status mapping, and
+full result preservation. S3 downloads/DB ownership lookups use local boundary
+stubs; anonymous auth rules are covered by existing tests. The fixture works
+with CORE `develop` alone, without CORE PR #5. `program2.elf` completes 97
+instructions in single 97 clocks / pipeline 134 clocks, with matching final
+registers, memory, and console output.
 
 When `CORE_SOURCE` is absent, cross-repository tests explicitly skip. GCC/RISC-V
 compiler and PostgreSQL tests require their respective tools/`TEST_DATABASE_URL`.

@@ -1,4 +1,4 @@
-"""HTTP -> BE service -> real CORE gRPC -> engine. S3/DB stay local stubs."""
+"""HTTP -> BE client -> test-only RPC fixture -> real CORE engine."""
 from io import BytesIO
 import json
 import os
@@ -26,15 +26,16 @@ from tests.test_anonymous_simulation import post
 def core_endpoint():
     source = os.environ.get('CORE_SOURCE')
     if not source:
-        pytest.skip('Set CORE_SOURCE to the CORE checkout with the gRPC adapter')
+        pytest.skip('Set CORE_SOURCE to the CORE engine checkout')
     root = Path(source).resolve()
-    assert (root / 'server/grpc_server.py').is_file(), 'CORE_SOURCE must contain the server adapter'
+    assert (root / 'app/single_cycle_engine.py').is_file(), 'CORE_SOURCE must contain the new single engine'
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
     target = f'127.0.0.1:{port}'
     options = {'creationflags': subprocess.CREATE_NO_WINDOW} if sys.platform == 'win32' else {}
-    process = subprocess.Popen([sys.executable, '-m', 'server.grpc_server', '--port', str(port)], cwd=root,
+    fixture = Path(__file__).parent / 'helpers/core_rpc_fixture.py'
+    process = subprocess.Popen([sys.executable, str(fixture), '--core-source', str(root), '--port', str(port)],
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **options)
     channel = grpc.insecure_channel(target)
     try:
@@ -127,7 +128,7 @@ def test_http_runtime_fault_is_a_simulation_result(api):
     assert event['code'] == 'MEMORY_ALIGNMENT_ERROR'
 
 
-def test_guest_request_uses_same_real_core_path(api, monkeypatch):
+def test_guest_request_uses_same_engine_path(api, monkeypatch):
     app, storage = api
     app.dependency_overrides[get_current_user_optional] = lambda: None
     monkeypatch.setattr(simulation, 'anonymous_binary_key', lambda token: 'test/binary.elf')
