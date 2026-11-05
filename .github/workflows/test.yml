@@ -8,7 +8,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
     services:
       postgres:
         image: postgres:16
@@ -50,7 +51,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
           pip install -r _core/requirements-server.txt
-          sudo apt-get update && sudo apt-get install -y gcc-riscv64-unknown-elf
+
+      - name: Install RISC-V compiler
+        timeout-minutes: 5
+        run: |
+          # Avoid the slow Azure archive for large cross-compiler downloads.
+          printf 'http://archive.ubuntu.com/ubuntu/\n' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 install -y --no-install-recommends gcc-riscv64-unknown-elf
 
       - name: Run tests
         run: pytest
