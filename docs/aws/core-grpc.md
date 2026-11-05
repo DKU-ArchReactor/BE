@@ -2,6 +2,11 @@
 
 2026-10-26, Blank Canvas `242925688392` / `ap-northeast-2`.
 
+2026-11-05 개발 변경: 현재 공개 CORE의 `server.grpc_server`와
+`Dockerfile.server`를 사용하는 연동은 [API 가이드](../api/simulation.md)를 따른다.
+아래 `dist/CORE` 경로와 배포 검증 결과는 당시 기록이다. 새 어댑터의 운영
+배포가 완료됐다는 의미는 아니다.
+
 ## 저장소와 배포 단위
 
 - BE: `DKU-ArchReactor/BE`, 현재 작업 폴더. 기존 `archreactor-core` Beanstalk을 유지한다.

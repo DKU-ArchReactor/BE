@@ -2,7 +2,7 @@ name: Test
 
 on:
   pull_request:
-    branches: [core]
+    branches: [develop, main, core]
   workflow_dispatch:
   workflow_call:
 
@@ -25,10 +25,19 @@ jobs:
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql://postgres:test-password@localhost:5432/archreactor_test
+      DEBUG: 'false'
+      CORE_SOURCE: ${{ github.workspace }}/_core
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Checkout reviewed CORE adapter candidate
+        uses: actions/checkout@v4
+        with:
+          repository: DKU-ArchReactor/CORE
+          ref: 292f16a9fcc293eae3b874d93d10bc26174f8396
+          path: _core
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,6 +49,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
+          pip install -r _core/requirements-server.txt
           sudo apt-get update && sudo apt-get install -y gcc-riscv64-unknown-elf
 
       - name: Run tests

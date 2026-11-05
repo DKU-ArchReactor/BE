@@ -1,4 +1,5 @@
 from unittest.mock import patch
+import shutil
 
 import pytest
 
@@ -12,6 +13,7 @@ def test_process_binary_passthrough():
     assert process_binary(b"") == b""
 
 
+@pytest.mark.skipif(not shutil.which('gcc'), reason='native GCC is not installed')
 def test_compile_source_success_for_valid_c():
     result = build_service.compile_source(
         content="int main(){return 0;}", lang="c", compiler_opt="-O2"
@@ -21,6 +23,7 @@ def test_compile_source_success_for_valid_c():
     assert result.assembly is not None and len(result.assembly) > 0
 
 
+@pytest.mark.skipif(not shutil.which('gcc'), reason='native GCC is not installed')
 def test_compile_source_failure_logs_error():
     result = build_service.compile_source(
         content="int main(){ return undeclared_thing; }",
