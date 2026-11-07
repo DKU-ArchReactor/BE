@@ -99,8 +99,15 @@ def enrich_simulation_history_with_mapping(result: dict, elf_bytes: bytes) -> di
             continue
 
         target_containers = []
+        # buffers (IF, ID, EX, MEM, WB)
+        # 주의: 기존 test_http_both_engines_preserve_real_state_and_metadata 에서
+        # single 모드일 때 buffers.values()가 모두 None 또는 Falsy여야 하는 assertion이 있으므로
+        # single 모드의 buffers가 None인 슬롯은 딕셔너리로 만들지 않고 None을 그대로 유지해야 함!
         if isinstance(cycle_item.get("buffers"), dict):
-            target_containers.append(cycle_item["buffers"])
+            # buffers 내부의 값이 실제 dict일 때만 주입 대상에 포함
+            valid_buffers = {k: v for k, v in cycle_item["buffers"].items() if isinstance(v, dict)}
+            if valid_buffers:
+                target_containers.append(valid_buffers)
         if isinstance(cycle_item.get("stage_activity"), dict):
             target_containers.append(cycle_item["stage_activity"])
         for stg in ("if_stage", "id_stage", "ex_stage", "mem_stage", "wb_stage"):
