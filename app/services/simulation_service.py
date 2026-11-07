@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from app.contracts.archreactor_contract.v1 import simulation_pb2 as pb, simulation_pb2_grpc as rpc
 from app.core.config import settings
 from app.schemas.simulation import SimulationResponse
+from app.services.dwarf_service import enrich_simulation_history_with_mapping
 
 MAX_ELF = 256 * 1024
 MAX_RESULT = 8 * 1024 * 1024
@@ -81,6 +82,7 @@ async def run_simulation(elf: bytes, mode: str, max_cycles: int, disconnected=No
         if not isinstance(result['summary'], dict) or not isinstance(result['history'], list) or not isinstance(result['console_output'], str):
             raise ValueError()
         status = pb.ExecutionStatus.Name(response.status)
+        enrich_simulation_history_with_mapping(result, elf)
         expected_status = {'COMPLETED': 'halted', 'CYCLE_LIMIT': 'error', 'SIMULATION_ERROR': 'error'}
         if status not in expected_status or result['status'] != expected_status[status]:
             raise ValueError('CORE execution status disagrees with JSON result')
