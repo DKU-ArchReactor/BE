@@ -29,8 +29,7 @@ def extract_pc_to_line_map(elf_bytes: bytes) -> Dict[str, int]:
             if lineprog is None:
                 continue
 
-            file_entries = lineprog["file_entry"]
-            # file_entries[0] 또는 file_idx로 파일명 확인
+            file_entries = lineprog["file_entry"] if "file_entry" in lineprog.header else []
             entries = lineprog.get_entries()
             prev_state = None
             for entry in entries:
@@ -38,16 +37,19 @@ def extract_pc_to_line_map(elf_bytes: bytes) -> Dict[str, int]:
                 if state is None:
                     continue
                 if prev_state and not prev_state.end_sequence and prev_state.line > 0:
-                    # 파일명 검사: source.c 에 속하는 경우만 매핑 (start.S 등은 CRT로 취급하기 위해 None)
                     is_source_c = False
                     try:
                         file_idx = prev_state.file - 1
                         if 0 <= file_idx < len(file_entries):
-                            fname = file_entries[file_idx].name.decode("utf-8", errors="ignore")
+                            f_entry = file_entries[file_idx]
+                            fname = f_entry.name.decode("utf-8", errors="ignore") if hasattr(f_entry, "name") else str(f_entry)
                             if "source.c" in fname:
                                 is_source_c = True
+                        elif not file_entries:
+                            # file_entry 테이블이 비어있는 경우(단일 CU) 기본 허용
+                            is_source_c = True
                     except Exception:
-                        pass
+                        is_source_c = True
 
                     if is_source_c:
                         curr_addr = prev_state.address

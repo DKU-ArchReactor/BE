@@ -45,7 +45,7 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
     compiler = os.environ.get("RISCV_CC", "riscv64-unknown-elf-gcc") if compile_profile == "rv32im" else "gcc"
     profile_flags = (["-march=rv32im", "-mabi=ilp32", "-O0", "-ffreestanding", "-nostdlib",
                       "-nostartfiles", "-fno-pic", "-fno-pie", "-fno-builtin", "-fno-inline",
-                      "-msmall-data-limit=0"] if compile_profile == "rv32im" else [])
+                      "-msmall-data-limit=0", "-gdwarf-4"] if compile_profile == "rv32im" else [])
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         src_name = "source.c" if lang == "c" else "source.s"
