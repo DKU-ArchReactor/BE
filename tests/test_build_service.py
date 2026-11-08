@@ -20,7 +20,18 @@ def test_compile_source_success_for_valid_c():
     )
     assert result.status == BuildStatus.success
     assert result.binary is not None and len(result.binary) > 0
-    assert result.assembly is not None and len(result.assembly) > 0
+    assert result.assembly is None
+
+
+@pytest.mark.skipif(not shutil.which('gcc'), reason='native GCC is not installed')
+def test_compile_source_success_for_valid_asm():
+    asm_code = ".globl main\nmain:\n  ret\n"
+    result = build_service.compile_source(
+        content=asm_code, lang="asm", compiler_opt=""
+    )
+    assert result.status == BuildStatus.success
+    assert result.binary is not None and len(result.binary) > 0
+    assert result.assembly == asm_code
 
 
 @pytest.mark.skipif(not shutil.which('gcc'), reason='native GCC is not installed')

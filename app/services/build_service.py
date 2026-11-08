@@ -57,20 +57,7 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
 
         log_parts: list[str] = []
 
-        # 어셈블리 산출물 생성 (C는 -S, asm은 입력 자체가 어셈블리)
-        if lang == "c":
-            asm_cmd = [compiler, *profile_flags, "-S", *opt_tokens, "-o", str(asm_path), str(src_path)]
-            asm_proc = _run(asm_cmd)
-            log_parts.append(_format_log(asm_cmd, asm_proc))
-            if asm_proc.returncode != 0:
-                return CompileResult(
-                    status=BuildStatus.failed,
-                    log="\n".join(log_parts),
-                    assembly=None,
-                    binary=None,
-                )
-
-        # ELF 바이너리 생성
+        # ELF 바이너리 생성 (C 소스 컴파일 시 -S 단계 생략하고 단일 패스로 ELF 생성)
         link_flags = []
         inputs = [str(src_path)]
         if compile_profile == "rv32im":
