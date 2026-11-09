@@ -16,6 +16,7 @@ from app.models.build import Build, BuildStatus
 from app.models.user import User
 from app.schemas.simulation import SimulationRequest, SimulationResponse
 from app.services.simulation_service import MAX_ELF, run_simulation
+from app.services.tutor import simulation_explanations
 
 router = APIRouter(prefix='/api/v1/simulation', tags=['simulation'])
 
@@ -57,6 +58,7 @@ async def simulate(body: SimulationRequest, request: Request,
     except ValueError:
         raise HTTPException(413, 'ELF exceeds 256 KiB') from None
     result = await run_simulation(elf, body.mode, body.max_cycles, request.is_disconnected, timings=timings)
+    result["tutor"] = simulation_explanations(result["result"])
     prepare_start = time.perf_counter()
     result = jsonable_encoder(result)
     timings['be-json-prepare'] = (time.perf_counter() - prepare_start) * 1000

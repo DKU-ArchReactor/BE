@@ -16,6 +16,7 @@ from app.schemas.build import (
     ObjdumpResponse,
 )
 from app.services import build_service, file_service
+from app.services.tutor import compile_explanations
 
 router = APIRouter(prefix="/api/v1/build", tags=["build"])
 
@@ -91,6 +92,8 @@ def _compile_from_file(
         assembly_url=presigned_get_url(assembly_key) if assembly_key else None,
         binary_url=presigned_get_url(binary_key) if binary_key else None,
         log=result.log,
+        tutor=compile_explanations(file.content, file.lang, result.assembly)
+        if result.status == BuildStatus.success and body.compile_profile == "rv32im" else None,
     )
 
 
@@ -122,6 +125,8 @@ def _compile_from_content(body: BuildCompileRequest) -> BuildCompileResponse:
         assembly_url=presigned_get_url(assembly_key) if assembly_key else None,
         binary_url=presigned_get_url(binary_key) if binary_key else None,
         log=result.log,
+        tutor=compile_explanations(body.content, body.lang, result.assembly)
+        if result.status == BuildStatus.success and body.compile_profile == "rv32im" else None,
     )
 
 
