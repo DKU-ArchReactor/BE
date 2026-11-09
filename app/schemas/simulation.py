@@ -26,3 +26,4 @@ class SimulationResponse(BaseModel):
     core_version: str = Field(min_length=1)
     result_schema_version: str = Field(min_length=1)
     result: dict[str, Any] = Field(description="CORE JSON 원문 구조: initial_state, program, simulator, summary, history, console_output 등")
+    tutor: dict[str, Any] | None = Field(default=None, description="규칙 기반 명령어 및 사이클 이벤트 해설 (schema_version 1.0)")
