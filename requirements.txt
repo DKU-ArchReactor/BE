@@ -9,7 +9,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 alembic==1.14.0
 email-validator==2.2.0
-boto3==1.35.92
+boto3[crt]==1.43.126
 gunicorn==23.0.0
 grpcio==1.76.0
 protobuf==6.33.5

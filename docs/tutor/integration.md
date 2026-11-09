@@ -6,7 +6,7 @@
 - `POST /api/v1/build/compile`: 기존 응답을 유지하고 RV32IM 성공 시 `tutor`를 추가한다. native/실패 시 null.
 - `POST /api/v1/simulation/run`: 기존 CORE `result`를 유지하고 바깥에 `tutor`를 추가한다. CORE 계약은 변경하지 않는다.
 - 프런트는 컴파일·실행 응답의 해설을 캐시하고 C 줄 선택 시 누락 항목만 요청한다. 재생 중에는 사이클별 해설을 응답에서 조회한다.
-- 전체 실행 저장·자동 맥락 조회·AI 실행 분석은 보류. `ContextProvider`는 추후 구현자가 소유권 검사 후 연결하는 인터페이스다.
+- 실행 컨텍스트 분석기(전체 실행 저장·자동 맥락 조회·AI 실행 분석)는 보류. `ExecutionContextProvider`는 추후 구현자가 소유권 검사 후 연결하는 인터페이스다.
 
 ## 해설 API
 

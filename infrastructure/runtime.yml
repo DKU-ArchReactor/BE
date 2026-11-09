@@ -200,7 +200,7 @@ Resources:
         RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
-          - AllowedOrigins: ['http://localhost:5173', 'http://archreactor.s3-website-us-east-1.amazonaws.com']
+          - AllowedOrigins: ['http://localhost:5173', 'http://archreactor.s3-website-us-east-1.amazonaws.com', 'http://archreactor-dev.s3-website-us-east-1.amazonaws.com']
             AllowedMethods: [GET, HEAD]
             AllowedHeaders: ['*']
             ExposedHeaders: [ETag]
@@ -228,6 +228,15 @@ Resources:
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkWebTier'
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
       Policies:
+        # Chat uses only the Seoul Sonnet model, with the existing instance role.
+        # Model access must be approved before enabling ASSISTANT_ENABLED.
+        - PolicyName: AssistantBedrock
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'bedrock:InvokeModelWithResponseStream'
+                Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-sonnet-5'
         - PolicyName: BackendResources
           PolicyDocument:
             Version: '2012-10-17'
