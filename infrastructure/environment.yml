@@ -18,6 +18,11 @@ Parameters:
   DatabaseUrlSecretArn: {Type: String}
   JwtSecretArn: {Type: String}
   ArtifactBucket: {Type: String}
+  AssistantEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable chat only after the Seoul Sonnet model access and database migration are ready
   CoreGrpcTarget:
     Type: String
     Default: ''
@@ -80,8 +85,11 @@ Resources:
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TARGET, Value: !Ref CoreGrpcTarget}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TIMEOUT_SECONDS, Value: '12'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_REGION, Value: !Ref 'AWS::Region'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_ENABLED, Value: !Ref AssistantEnabled}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: BEDROCK_MODEL_ID, Value: 'anthropic.claude-sonnet-5'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: BEDROCK_MAX_TOKENS, Value: '2048'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_S3_BUCKET, Value: !Ref ArtifactBucket}
-        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173","http://archreactor.s3-website-us-east-1.amazonaws.com"]'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173","http://archreactor.s3-website-us-east-1.amazonaws.com","http://archreactor-dev.s3-website-us-east-1.amazonaws.com"]'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: S3_PRESIGN_EXPIRES_SECONDS, Value: '300'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ORIGIN_TLS_HOST, Value: !Ref OriginTlsHost}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: PUBLIC_HTTPS_HOST, Value: !Ref PublicHttpsHost}

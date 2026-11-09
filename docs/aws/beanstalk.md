@@ -310,3 +310,7 @@ HTTPS 프론트의 API 주소는 `https://d1j3nkcez6kncs.cloudfront.net`으로 �
 자세한 계약·환경·검증 기록은 [core-grpc.md](core-grpc.md)를 참고한다.
 BE 이미지에는 gRPC 계약 생성 코드만 포함하며 CORE 구현을 import하지 않는다.
 `CoreGrpcTarget` CloudFormation 매개변수로 내부 서비스 주소를 관리한다.
+
+## AI 어시스턴트 비활성 배포
+
+Bedrock 준비 코드도 기존 core 브랜치 배포 경로를 사용한다. `ASSISTANT_ENABLED`는 기본 false이며, 공개 상태 조회와 고정 SSE 진단으로 모델 호출 없이 통신을 검증한다. 모델 접근 확인 전에는 활성화하지 않는다. 이번 앱 배포는 CloudFormation 스택을 갱신하지 않으므로 준비된 IAM 정책과 환경 매개변수는 별도 적용이 필요하다. 적용·검증 순서는 [어시스턴트 연동 문서](../assistant/integration.md)를 따른다.

@@ -1,6 +1,5 @@
 """Versioned tutor contracts; presentation colors stay in the client."""
-from typing import Literal, Protocol
-from uuid import UUID
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -30,17 +29,3 @@ class RuleExplanation(BaseModel):
 class ExplainResponse(BaseModel):
     schema_version: Literal['1.0'] = '1.0'
     items: list[RuleExplanation]
-
-
-class ContextReference(BaseModel):
-    """Reserved for a future authorized, read-only execution context provider."""
-    execution_id: UUID
-    mode: Literal['single', 'pipeline']
-    cycle: int | None = Field(default=None, ge=0)
-    source_line: int | None = Field(default=None, ge=1)
-
-
-class ContextProvider(Protocol):
-    async def resolve(self, reference: ContextReference, *, user_id: UUID) -> dict:
-        """Implementations must check ownership before retrieving any execution data."""
-        ...

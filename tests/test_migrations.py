@@ -57,7 +57,8 @@ def test_concurrent_startup_and_repeat_preserve_data(isolated_database):
                 process.kill()
                 process.communicate()
     with engine.begin() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "5e62e48b1f36"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "e7a124b891c0"
+        assert inspect(connection).has_table('assistant_usage')
         connection.execute(text(
             "INSERT INTO users (user_id, email, password_hash, name) "
             "VALUES ('test', 'test@example.com', 'unused', 'test')"
@@ -83,3 +84,33 @@ def test_failed_migration_rolls_back_and_releases_lock(isolated_database, monkey
     monkeypatch.setattr(migrate.command, "upgrade", original_upgrade)
     migrate.migrate()
     assert inspect(engine).has_table("users")
+
+
+def test_assistant_quota_is_atomic_under_concurrent_requests(isolated_database, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime, timezone
+    from fastapi import HTTPException
+    from sqlalchemy.orm import Session
+    from app.services.assistant.usage import reserve_request
+
+    url, engine = isolated_database
+    monkeypatch.setattr(migrate.settings, 'DATABASE_URL', url)
+    monkeypatch.setattr(migrate.settings, 'ASSISTANT_DAILY_REQUESTS', 5)
+    # Isolate the daily allowance race from the separately tested cooldown.
+    monkeypatch.setattr(migrate.settings, 'ASSISTANT_COOLDOWN_SECONDS', 0)
+    migrate.migrate()
+    now = datetime(2026, 11, 9, tzinfo=timezone.utc)
+
+    def attempt(_):
+        with Session(engine) as db:
+            try:
+                reserve_request(db, 'quota-test', now=now)
+                return True
+            except HTTPException as error:
+                assert error.status_code == 429
+                return False
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        assert sum(pool.map(attempt, range(20))) == 5
+    with engine.connect() as connection:
+        assert connection.scalar(text('SELECT request_count FROM assistant_usage')) == 5
