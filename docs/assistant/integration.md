@@ -54,7 +54,7 @@ OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개
 1. 테스트·PR을 거쳐 앱만 비활성 상태로 먼저 배포하고 status/CORS/SSE/기존 튜터를 검증한다. DB 변경은 없다.
 2. SOLID에서 전용 키를 발급하고 계정 `242925688392` / 서울의 Secrets Manager에 JSON `api_key` 필드로 등록한다. 값은 채팅·Git·명령 인자·출력에 남기지 않는다. 이 문서에는 실제 키가 없다.
 3. 기존 runtime 스택의 SecretKey로 암호화한 secret ARN을 `SolidLlmApiKeySecretArn`으로 runtime/environment 템플릿에 전달한다. 값이 빈 문자열이면 추가 권한·환경 참조를 만들지 않는다. 다른 KMS 키를 사용하려면 해당 키에 대한 최소 복호화 권한도 별도로 검토한다.
-4. 인프라 검증·변경 세트를 확인하고 runtime 권한을 먼저, environment 참조를 나중에 적용한다. **환경 스택의 VersionLabel이 초기 버전으로 돌아가지 않도록 현재 앱 버전을 보존한다.** 이번 비활성 앱 배포는 이 스택 변경을 자동 실행하지 않는다.
+4. 인프라 검증·변경 세트를 확인하고 runtime 권한을 먼저, environment 참조를 나중에 적용한다. **환경 스택 업데이트마다 `DescribeEnvironments`의 현재 `VersionLabel`을 `ExistingApplicationVersion`에 명시한다.** CI가 별도로 앱을 배포하므로 이전 매개변수 값을 재사용하면 안 된다. 신규 환경은 이 값을 비워 초기 `Version`을 사용한다. 이번 비활성 앱 배포는 이 스택 변경을 자동 실행하지 않는다.
 5. Beanstalk의 `SOLID_LLM_API_KEY`는 `aws:elasticbeanstalk:application:environmentsecrets`에서 `secret ARN:api_key`로 참조한다. 키는 플랫폼이 런타임에 해석한다. 키 변경 후에는 환경 갱신/앱 재시작이 필요하다.
 6. 프로젝트 비밀값 작업 규칙에 따라 로컬 검증에는 `asm-exec`와 `{{resolve:secretsmanager:secret-id:SecretString:api_key}}` 참조를 사용한다. 비밀값 읽기 API를 직접 호출하거나 환경 전체를 출력하지 않는다.
 7. 서울 서버에서 소량의 비스트리밍·스트리밍 요청으로 인증, 모델 접근, `max_tokens`, 한국어, usage 옵션 호환성을 확인한다. 성공하기 전에는 실제 서비스 응답 검증 완료로 표시하지 않는다.
@@ -67,3 +67,11 @@ OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개
 문제가 생기면 ASSISTANT_ENABLED=false로 되돌린다. 사용량 테이블과 규칙 튜터는 그대로 유지한다. 외부 계정 키를 폐기했다면 환경 참조도 갱신한다. Bedrock으로 자동 복귀하지 않는다. 사용자에게 자체 로그인 오류와 공급자 계정 한도/키 오류를 구분해 안내한다.
 
 [프론트 인수인계](frontend-handoff.md) · [AWS environmentsecrets와 JSON key extraction](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/AWSHowTo.secrets.env-vars.html) · [OpenAI Python SDK](https://developers.openai.com/api/reference/python)
+
+## 서울 운영 연결 검증 (2026-11-11)
+
+- SOLID 전용 키는 운영자가 콘솔에 직접 등록했다. 이번 연결은 승인된 예외에 따라 Beanstalk 기본 비밀 참조로 주입했으며, 검증 도구가 Secrets Manager 비밀값을 직접 읽지 않았다.
+- `runtime` 변경 세트는 `InstanceRole`의 기존 읽기 정책에 전용 secret ARN 하나만 추가한다. 환경 업데이트는 현재 앱 버전을 명시해 초기 앱으로 되돌아가지 않게 했다. DB·네트워크·기존 비밀은 변경하지 않는다.
+- cfn-lint 1.60.0: 두 템플릿 오류·경고 0. cfn-guard 3.2.1: AWS 공식 규칙 중 KMS 회전, KMS principal, CMK 사용, IAM trust/권한의 5개 검사 통과. 이는 전체 계정 보안 감사 결과가 아니다. CMK 규칙의 intrinsic 비교 경고는 실제 secret의 KMS ARN을 별도 확인했다.
+- CloudFormation 변경 세트 생성과 `DescribeEvents` 사전 검증 통과, 리소스 교체·삭제 없음. 장기 CloudTrail trail은 기존 구성대로 별도 추가하지 않았다.
+- 서울 앱 컨테이너에서 일반 응답, 기본 스트리밍, `stream_options.include_usage=true` 모두 성공했다. 한국어 delta와 정상 종료를 확인했고, 64토큰 제한에서는 `max_tokens` 종료도 확인했다. usage 옵션은 지원되지만 운영 기본값은 계속 false다.
