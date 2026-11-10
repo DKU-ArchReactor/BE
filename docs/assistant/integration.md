@@ -75,3 +75,5 @@ OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개
 - cfn-lint 1.60.0: 두 템플릿 오류·경고 0. cfn-guard 3.2.1: AWS 공식 규칙 중 KMS 회전, KMS principal, CMK 사용, IAM trust/권한의 5개 검사 통과. 이는 전체 계정 보안 감사 결과가 아니다. CMK 규칙의 intrinsic 비교 경고는 실제 secret의 KMS ARN을 별도 확인했다.
 - CloudFormation 변경 세트 생성과 `DescribeEvents` 사전 검증 통과, 리소스 교체·삭제 없음. 장기 CloudTrail trail은 기존 구성대로 별도 추가하지 않았다.
 - 서울 앱 컨테이너에서 일반 응답, 기본 스트리밍, `stream_options.include_usage=true` 모두 성공했다. 한국어 delta와 정상 종료를 확인했고, 64토큰 제한에서는 `max_tokens` 종료도 확인했다. usage 옵션은 지원되지만 운영 기본값은 계속 false다.
+
+- 활성화 변경 세트까지 `UPDATE_COMPLETE`, Beanstalk `Ready/Green/Ok`, 앱 버전 유지 확인. 공개 status는 `ENABLED`, health 200, CORS preflight 200, 미인증 chat 403, 고정 SSE 두 이벤트 간격 0.495초를 확인했다. 로그인 사용자의 공개 채팅·한도 검사는 임시 테스트 DB 행 생성 승인 대기이며 아직 성공으로 간주하지 않는다. 프론트는 미배포다.
