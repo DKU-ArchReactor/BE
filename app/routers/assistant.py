@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.schemas.assistant import ChatRequest
-from app.services.assistant.agent import AgentError, AgentProvider, get_agent_provider
+from app.services.assistant.agent import AgentError, AgentProvider, assistant_ready, get_agent_provider
 from app.services.assistant.usage import reserve_request
 
 router = APIRouter(prefix='/api/v1/assistant', tags=['assistant'])
@@ -19,12 +19,12 @@ router = APIRouter(prefix='/api/v1/assistant', tags=['assistant'])
 
 @router.get('/status', summary='AI 연결 준비 상태')
 def status():
-    return {'enabled': settings.ASSISTANT_ENABLED,
-            'code': 'ENABLED' if settings.ASSISTANT_ENABLED else 'AGENT_NOT_CONFIGURED'}
+    enabled = assistant_ready()
+    return {'enabled': enabled, 'code': 'ENABLED' if enabled else 'AGENT_NOT_CONFIGURED'}
 
 
 @router.get('/transport-check', summary='모델 호출 없는 SSE 통신 점검',
-            description='고정된 진단 이벤트 2개만 전송합니다. 사용자 입력·DB·Bedrock에 접근하지 않습니다.',
+            description='고정된 진단 이벤트 2개만 전송합니다. 사용자 입력·DB·외부 AI에 접근하지 않습니다.',
             responses={200: {'content': {'text/event-stream': {}}}})
 def transport_check():
     async def events():
