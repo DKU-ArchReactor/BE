@@ -3,7 +3,7 @@ Description: ArchReactor demo network, private PostgreSQL and runtime roles, sep
 Metadata:
   AWSToolsMetrics: {AWSAgentToolkit: aws-cloudformation@3}
   com.aws.cloudformation.Context:
-    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}]
+    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}, {at: docs/assistant/integration.md, has: SOLID gateway activation and secret reference constraints}]
 Parameters:
   Prefix:
     Type: String
@@ -18,6 +18,13 @@ Parameters:
     Default: pl-22a6434b
     AllowedPattern: 'pl-[a-f0-9]+'
     Description: AWS-managed CloudFront origin-facing prefix list in Seoul
+  SolidLlmApiKeySecretArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:secretsmanager:ap-northeast-2:242925688392:secret:[A-Za-z0-9/_+=.@-]+$'
+    Description: Existing SOLID secret encrypted with this stack's SecretKey
+Conditions:
+  HasSolidLlmSecret: !Not [!Equals [!Ref SolidLlmApiKeySecretArn, '']]
 Resources:
   Vpc:
     Type: AWS::EC2::VPC
@@ -228,15 +235,6 @@ Resources:
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkWebTier'
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
       Policies:
-        # Chat uses only the Seoul Sonnet model, with the existing instance role.
-        # Model access must be approved before enabling ASSISTANT_ENABLED.
-        - PolicyName: AssistantBedrock
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 'bedrock:InvokeModelWithResponseStream'
-                Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-sonnet-5'
         - PolicyName: BackendResources
           PolicyDocument:
             Version: '2012-10-17'
@@ -253,7 +251,10 @@ Resources:
                 Resource: !Sub '${Artifacts.Arn}/builds/*'
               - Effect: Allow
                 Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret']
-                Resource: [!Ref DatabaseUrlSecret, !Ref JwtSecret]
+                Resource:
+                  - !Ref DatabaseUrlSecret
+                  - !Ref JwtSecret
+                  - !If [HasSolidLlmSecret, !Ref SolidLlmApiKeySecretArn, !Ref AWS::NoValue]
                 Condition: {Bool: {'aws:SecureTransport': 'true'}}
               - Effect: Allow
                 Action: ['kms:Decrypt', 'kms:DescribeKey']

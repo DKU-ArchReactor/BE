@@ -3,7 +3,7 @@ Description: Single-instance ArchReactor Beanstalk Docker environment using a pr
 Metadata:
   AWSToolsMetrics: {AWSAgentToolkit: aws-cloudformation@3}
   com.aws.cloudformation.Context:
-    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}]
+    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}, {at: docs/assistant/integration.md, has: SOLID gateway activation and secret reference constraints}]
 Parameters:
   SolutionStack:
     Type: String
@@ -22,7 +22,12 @@ Parameters:
     Type: String
     Default: 'false'
     AllowedValues: ['true', 'false']
-    Description: Enable chat only after the Seoul Sonnet model access and database migration are ready
+    Description: Enable chat only after SOLID credentials, live gateway checks and database migration are ready
+  SolidLlmApiKeySecretArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:secretsmanager:ap-northeast-2:242925688392:secret:[A-Za-z0-9/_+=.@-]+$'
+    Description: Existing Seoul secret ARN containing a top-level api_key field; never pass the key value
   CoreGrpcTarget:
     Type: String
     Default: ''
@@ -41,6 +46,8 @@ Parameters:
     Default: 'false'
     AllowedValues: ['true', 'false']
     Description: Redirect HTTP API paths only after CloudFront uses HTTPS to the origin
+Conditions:
+  HasSolidLlmSecret: !Not [!Equals [!Ref SolidLlmApiKeySecretArn, '']]
 Resources:
   Application:
     Type: AWS::ElasticBeanstalk::Application
@@ -86,8 +93,10 @@ Resources:
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TIMEOUT_SECONDS, Value: '12'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_REGION, Value: !Ref 'AWS::Region'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_ENABLED, Value: !Ref AssistantEnabled}
-        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: BEDROCK_MODEL_ID, Value: 'anthropic.claude-sonnet-5'}
-        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: BEDROCK_MAX_TOKENS, Value: '2048'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_PROVIDER, Value: solid_llm}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SOLID_LLM_BASE_URL, Value: 'https://dku-chat.kloud.zone/llm/v1'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SOLID_LLM_MODEL, Value: 'local/qwen3-coder-next'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_MAX_TOKENS, Value: '2048'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_S3_BUCKET, Value: !Ref ArtifactBucket}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173","http://archreactor.s3-website-us-east-1.amazonaws.com","http://archreactor-dev.s3-website-us-east-1.amazonaws.com"]'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: S3_PRESIGN_EXPIRES_SECONDS, Value: '300'}
@@ -96,6 +105,11 @@ Resources:
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ORIGIN_HTTPS_ONLY, Value: !Ref OriginHttpsOnly}
         - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: DATABASE_URL, Value: !Ref DatabaseUrlSecretArn}
         - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: JWT_SECRET_KEY, Value: !Ref JwtSecretArn}
+        # Platform resolves api_key at boot; no secret value enters the template.
+        - !If
+          - HasSolidLlmSecret
+          - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: SOLID_LLM_API_KEY, Value: !Sub '${SolidLlmApiKeySecretArn}:api_key'}
+          - !Ref AWS::NoValue
       Tags: [{Key: Project, Value: ArchReactor}, {Key: Environment, Value: core}]
 Outputs:
   Endpoint: {Description: Backend HTTP endpoint, Value: !GetAtt Environment.EndpointURL}

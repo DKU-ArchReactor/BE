@@ -313,4 +313,6 @@ BE 이미지에는 gRPC 계약 생성 코드만 포함하며 CORE 구현을 impo
 
 ## AI 어시스턴트 비활성 배포
 
-Bedrock 준비 코드도 기존 core 브랜치 배포 경로를 사용한다. `ASSISTANT_ENABLED`는 기본 false이며, 공개 상태 조회와 고정 SSE 진단으로 모델 호출 없이 통신을 검증한다. 모델 접근 확인 전에는 활성화하지 않는다. 이번 앱 배포는 CloudFormation 스택을 갱신하지 않으므로 준비된 IAM 정책과 환경 매개변수는 별도 적용이 필요하다. 적용·검증 순서는 [어시스턴트 연동 문서](../assistant/integration.md)를 따른다.
+SOLID-LLM 연결 코드도 기존 core 브랜치 배포 경로를 사용한다. `ASSISTANT_ENABLED` 기본값은 false다. 활성화 플래그와 API 키가 모두 준비된 경우에만 채팅을 허용한다. 공개 상태 조회와 고정 SSE 진단으로 모델 호출 없이 통신을 검증한다.
+
+비활성 앱 배포와 키 등록·인프라 적용은 구분한다. `SolidLlmApiKeySecretArn`은 비밀값이 아닌 기존 서울 Secrets Manager ARN을 두 스택에 전달한다. runtime 스택의 SecretKey로 암호화한 JSON secret의 `api_key`를 environmentsecrets에서 참조한다. 준비된 템플릿을 변경 세트로 검토한 뒤 적용하며, 환경 스택의 VersionLabel이 과거 초기 버전으로 되돌아가지 않도록 현재 배포 버전을 보존해야 한다. 적용·검증 순서는 [어시스턴트 연동 문서](../assistant/integration.md)를 따른다.

@@ -18,8 +18,14 @@ class AgentProvider(Protocol):
         ...
 
 
+def assistant_ready() -> bool:
+    # Configuration readiness only; status does not probe the paid/shared gateway.
+    return (settings.ASSISTANT_ENABLED and settings.ASSISTANT_PROVIDER == 'solid_llm'
+            and bool(settings.SOLID_LLM_API_KEY.get_secret_value().strip()))
+
+
 def get_agent_provider() -> AgentProvider | None:
-    if not settings.ASSISTANT_ENABLED:
+    if not assistant_ready():
         return None
-    from app.services.assistant.bedrock import BedrockProvider
-    return BedrockProvider()
+    from app.services.assistant.solid_llm import SolidLLMProvider
+    return SolidLLMProvider()

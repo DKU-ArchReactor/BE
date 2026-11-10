@@ -25,7 +25,7 @@ FE PR #18을 먼저 검토한다. 컴파일 응답과 시뮬레이션 응답의 
 {"enabled":false,"code":"AGENT_NOT_CONFIGURED"}
 ```
 
-false일 때 입력/전송을 비활성화하고 ‘AI 어시스턴트 연결 준비 중’ 안내를 보여준다. 이 값은 설정 플래그이며, true만으로 실제 Bedrock 모델 접근 성공을 보장하지는 않는다. API 키 입력 UI는 만들지 않는다.
+false일 때 입력/전송을 비활성화하고 ‘AI 어시스턴트 연결 준비 중’ 안내를 보여준다. 이 값은 활성화 플래그와 키 설정 유무를 확인하며, true만으로 실제 SOLID 모델 접근 성공을 보장하지는 않는다. API 키 입력 UI는 만들지 않는다.
 
 ## 3. 채팅 계약 (활성화 후)
 
@@ -73,3 +73,14 @@ data: {"type":"error","code":"MODEL_ACCESS_DENIED","message":"..."}
 4. 화면/실행 결과를 자동으로 읽는다는 안내나 동작을 추가하지 않는다. 실행 컨텍스트 분석기 연동은 후속 범위다.
 
 별도 프론트 채팅 준비 초안은 미배포 상태다. 담당자는 위 계약을 기준으로 상태 조회·준비 중 표시를 보완해야 한다. 이번 백엔드 배포에는 프론트 변경이 포함되지 않는다.
+
+## SOLID-LLM 전환 인수인계
+
+- 백엔드 공급자를 SOLID-LLM으로 변경한다. 기본 모델은 `local/qwen3-coder-next`다.
+- 프론트 API 주소, 기존 로그인 인증, `delta/done/error` SSE 계약은 유지한다. SOLID API를 브라우저에서 직접 호출하지 않는다.
+- API 키가 없으면 `ASSISTANT_ENABLED=true`여도 status는 false이고 로그인된 chat은 503이다.
+- SOLID `length` 종료는 기존 `stop_reason=max_tokens`로 변환한다. `content_filtered`이면 제한 안내를 표시한다.
+- `usage`가 빈 객체이면 사용량 정보 미제공이다. 토큰 사용량을 0으로 표시하지 않는다.
+- `MODEL_ACCESS_DENIED`: 서비스 인증/권한 문제, `MODEL_QUOTA_EXCEEDED`: 서비스 계정 한도/결제 확인, `MODEL_BUSY`: 요청 제한 또는 월 한도, `MODEL_CONTENT_FILTERED`: 응답 제한이다. 사용자의 ArchReactor 로그인 만료와 구분한다.
+- SOLID 계정 월 한도는 모든 앱 사용자가 공유한다. 앱 사용자별 50회/일 제한과 별도다.
+- 실행 컨텍스트 분석기는 여전히 미연결이다. 코드·화면·실행 이력을 자동으로 읽는다고 안내하지 않는다.
