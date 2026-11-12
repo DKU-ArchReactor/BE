@@ -76,4 +76,16 @@ OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개
 - CloudFormation 변경 세트 생성과 `DescribeEvents` 사전 검증 통과, 리소스 교체·삭제 없음. 장기 CloudTrail trail은 기존 구성대로 별도 추가하지 않았다.
 - 서울 앱 컨테이너에서 일반 응답, 기본 스트리밍, `stream_options.include_usage=true` 모두 성공했다. 한국어 delta와 정상 종료를 확인했고, 64토큰 제한에서는 `max_tokens` 종료도 확인했다. usage 옵션은 지원되지만 운영 기본값은 계속 false다.
 
-- 활성화 변경 세트까지 `UPDATE_COMPLETE`, Beanstalk `Ready/Green/Ok`, 앱 버전 유지 확인. 공개 status는 `ENABLED`, health 200, CORS preflight 200, 미인증 chat 403, 고정 SSE 두 이벤트 간격 0.495초를 확인했다. 로그인 사용자의 공개 채팅·한도 검사는 임시 테스트 DB 행 생성 승인 대기이며 아직 성공으로 간주하지 않는다. 프론트는 미배포다.
+- 활성화 변경 세트까지 `UPDATE_COMPLETE`, Beanstalk `Ready/Green/Ok`, 앱 버전 유지 확인. 공개 status는 `ENABLED`, health 200, CORS preflight 200, 미인증 chat 403, 고정 SSE 두 이벤트 간격 0.495초를 확인했다. 로그인 사용자의 공개 채팅·한도 검증은 아래 2026-11-12 기록을 따른다. 프론트는 미배포다.
+
+
+## 로그인 채팅 최종 검증 (2026-11-12)
+
+사용자 승인하에 격리된 임시 계정 1개를 만들고 공개 API로 검증했다. 실제 사용자 데이터는 변경하지 않았다.
+
+- `/auth/login` 200, Bearer 인증 `/api/v1/assistant/chat` 200 / `text/event-stream`.
+- SOLID 실제 호출 1회: 한글 delta 52개, 첫 delta 0.801초, 전체 1.121초, `done.end_turn`, 오류 이벤트 없음. 이는 단일 요청 관측값이며 성능 보장 수치가 아니다.
+- 사용량 1회 기록을 확인한 후 해당 임시 계정의 횟수만 일일 한도로 설정해 추가 모델 호출 없이 429 `ASSISTANT_RATE_LIMIT`을 확인했다.
+- 검증 후 임시 사용자와 해당 사용량 기록을 삭제했다. 재조회 결과 두 테이블 모두 해당 테스트 ID의 행은 0개였다.
+- API 키, 임시 비밀번호, 로그인 토큰, 실제 사용자 정보는 검증 출력에 기록하지 않았다.
+- 프론트 배포는 계속 보류하며 실행 컨텍스트 분석기는 미연결이다.
