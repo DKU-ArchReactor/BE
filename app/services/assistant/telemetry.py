@@ -27,8 +27,8 @@ def token_usage(value) -> dict:
 
 
 class Observation:
-    def __init__(self):
-        self.request_id = uuid4().hex
+    def __init__(self, request_id=None):
+        self.request_id = request_id or uuid4().hex
         self.usage = {}
         self.started = perf_counter()
         self.stage_started = {}
@@ -48,3 +48,21 @@ class Observation:
                                'outcome': outcome, 'stages': self.usage, 'total': total,
                                'elapsed_ms': round((perf_counter() - self.started) * 1000, 2),
                                'stage_usage_received_ms': self.stage_duration_ms}))
+
+
+FAILURE_CODES = frozenset({
+    'AGENT_NOT_CONFIGURED', 'ASSISTANT_RATE_LIMIT', 'CLASSIFICATION_UNAVAILABLE',
+    'MODEL_ACCESS_DENIED', 'MODEL_BUSY', 'MODEL_CONTENT_FILTERED', 'MODEL_QUOTA_EXCEEDED',
+    'MODEL_STREAM_ERROR', 'MODEL_TIMEOUT', 'MODEL_UNAVAILABLE',
+    'CONTEXT_CYCLE_UNAVAILABLE', 'CONTEXT_EXPIRED', 'CONTEXT_MEMORY_UNAVAILABLE',
+    'CONTEXT_MISMATCH', 'CONTEXT_NOT_FOUND', 'CONTEXT_TOO_LARGE', 'CLIENT_DISCONNECTED',
+})
+STAGES = frozenset({'admission', 'context', 'quota', 'classification', 'answer'})
+
+
+def log_failure(request_id, stage, code):
+    """Only allowlisted metadata; never interpolate exceptions or request bodies."""
+    safe_code = code if code in FAILURE_CODES else 'MODEL_UNAVAILABLE'
+    logger.info(json.dumps({'event': 'assistant_failure', 'requestId': request_id,
+                            'stage': stage if stage in STAGES else 'admission', 'code': safe_code}))
+    return safe_code
