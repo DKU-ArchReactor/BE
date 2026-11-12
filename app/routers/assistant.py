@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.assistant import ChatRequest
 from app.services.assistant.agent import AgentError, AgentProvider, assistant_ready, get_agent_provider
 from app.services.assistant.usage import reserve_request
+from app.services.assistant.context import resolve_context
 
 router = APIRouter(prefix='/api/v1/assistant', tags=['assistant'])
 
@@ -48,6 +49,8 @@ def chat(body: ChatRequest, current: User = Depends(get_current_user),
          db: Session = Depends(get_db), provider: AgentProvider | None = Depends(get_agent_provider)):
     if provider is None:
         raise HTTPException(503, {'code': 'AGENT_NOT_CONFIGURED', 'message': 'AI 연결이 아직 활성화되지 않았습니다.'})
+    if body.context is not None:
+        body._execution_context = resolve_context(db, body.context, current.user_id)
     reserve_request(db, current.user_id)
 
     async def events():

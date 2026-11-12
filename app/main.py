@@ -13,10 +13,11 @@ from app.routers import simulation as simulation_router
 from app.routers import professor as professor_router
 
 from app.services.assistant.telemetry import configure_usage_logging
+from app.services.assistant.maintenance import lifespan
 
 configure_usage_logging()
 
-app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
+app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

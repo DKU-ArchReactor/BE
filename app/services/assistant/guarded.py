@@ -29,6 +29,8 @@ class GuardedProvider:
                 async for event in stream:
                     if event['type'] == 'done':
                         outcome = 'ALLOW'
+                        if request._execution_context is not None:
+                            event = {**event, 'context': request._execution_context['reference']}
                     yield event
         except Exception:
             outcome = 'error'

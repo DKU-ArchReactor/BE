@@ -12,6 +12,8 @@ class SimulationRequest(BaseModel):
     mode: Literal["single", "pipeline"] = Field(default="pipeline", description="실행할 CORE 엔진")
     max_cycles: int = Field(default=2000, ge=1, le=2000, strict=True)
 
+    capture_assistant_context: bool = Field(default=False, strict=True, description="로그인 사용자가 AI 참조용 임시 실행 스냅샷 보관을 요청할 때만 true")
+
     @model_validator(mode="after")
     def check_input_mode(self):
         if (self.build_id is None) == (self.simulation_token is None):
@@ -26,4 +28,5 @@ class SimulationResponse(BaseModel):
     core_version: str = Field(min_length=1)
     result_schema_version: str = Field(min_length=1)
     result: dict[str, Any] = Field(description="CORE JSON 원문 구조: initial_state, program, simulator, summary, history, console_output 등")
+    assistant_context: dict[str, Any] | None = Field(default=None, description="AI 참조용 실행 ID/버전/만료 시각. 보관 요청 시에만 제공")
     tutor: dict[str, Any] | None = Field(default=None, description="규칙 기반 명령어 및 사이클 이벤트 해설 (schema_version 1.0)")

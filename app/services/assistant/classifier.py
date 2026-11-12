@@ -20,8 +20,11 @@ def classification_input(request: ChatRequest) -> str:
         history.append({'role': message.role, 'content': content,
                         'truncated': len(content) < len(message.content)})
         remaining -= len(content)
-    return json.dumps({'recent_history': list(reversed(history)),
-                       'latest_question': request.messages[-1].content}, ensure_ascii=False)
+    data = {'recent_history': list(reversed(history)), 'latest_question': request.messages[-1].content}
+    if request._execution_context is not None:
+        ref = request._execution_context['reference']
+        data['execution_reference'] = {'mode': ref['mode'], 'cycle': ref['cycle']}
+    return json.dumps(data, ensure_ascii=False)
 
 
 def parse_decision(content: str) -> Decision:
