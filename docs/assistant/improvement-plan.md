@@ -19,7 +19,7 @@ Five synthetic machine-checkable regression cases live in `tests/fixtures/assist
 python -m scripts.evaluate_assistant_context --cases tests/fixtures/assistant_quality_cases.json
 ```
 
-This is an opt-in paid/shared-quota model evaluation. It prints only labels, pass/fail and usage, not answers. Unit tests use fakes. Real model evaluation of this changed backend prompt has NOT been run. The PR remains draft pending evaluation.
+This is an opt-in paid/shared-quota model evaluation. It prints only labels, pass/fail and usage, not answers. Unit tests use fakes. Actual SOLID evaluation was run on 2026-11-13 against prompt commit `297fff0c85efdbd488604fa220f77aa5a4f6732a`: the rollout gate FAILED (9/15 factual passes, 1/16 valid natural-language questions incorrectly gated, and 14/15 ordinary model answers over 700 characters). See [evaluation findings and limitations](evaluations/2026-11-13-solid-quality.md). Hold rollout pending fixes and re-evaluation; PR UI readiness is not a quality approval.
 
 Before rollout, require all five factual checks to pass in three independent conversations. Also ask all eight suggestions in fresh conversations and one sequential conversation; require no scope refusal for valid questions, no truncation, concise answers (target 500, review answers over 700 characters), and correct uncertainty. Test an explicit detailed request to ensure useful expansion. Review Korean prose manually: JSON extraction alone does not establish educational accuracy. Failed factual cases block rollout even if all requests return HTTP 200.
 
