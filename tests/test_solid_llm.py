@@ -173,7 +173,7 @@ def test_missing_configuration_keeps_status_and_chat_disabled(monkeypatch):
     monkeypatch.setattr(settings, 'ASSISTANT_ENABLED', True)
     monkeypatch.setattr(settings, 'SOLID_LLM_API_KEY', SecretStr('  '))
     assert get_agent_provider() is None
-    assert assistant.status() == {'enabled':False,'code':'AGENT_NOT_CONFIGURED'}
+    assert assistant.status() == {'enabled':False,'code':'AGENT_NOT_CONFIGURED','editor_source_supported':True}
     monkeypatch.setattr(settings, 'SOLID_LLM_API_KEY', SecretStr('test-only-placeholder'))
     from app.services.assistant.guarded import GuardedProvider
     assert isinstance(get_agent_provider(), GuardedProvider)

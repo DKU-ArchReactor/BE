@@ -24,6 +24,10 @@ def classification_input(request: ChatRequest) -> str:
     if request._execution_context is not None:
         ref = request._execution_context['reference']
         data['execution_reference'] = {'mode': ref['mode'], 'cycle': ref['cycle']}
+    if request.editor_source is not None:
+        source = request.editor_source
+        data['editor_source'] = {'language': source.language, 'content': source.content[:4000],
+                                 'truncated': len(source.content) > 4000}
     return json.dumps(data, ensure_ascii=False)
 
 
