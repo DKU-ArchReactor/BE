@@ -174,19 +174,28 @@ def test_unknown_usage_not_counted_as_zero(caplog):
 def test_classification_timeout_and_cancellation_close_client_and_release_slot(monkeypatch):
     monkeypatch.setattr(solid_llm, '_slots', BoundedSemaphore(1))
     monkeypatch.setattr(settings, 'ASSISTANT_CLASSIFICATION_TIMEOUT_SECONDS', 0.02)
-    async def hang(request): await asyncio.Event().wait()
+    entered = None
+    async def hang(request):
+        if entered is not None:
+            entered.set()
+        await asyncio.Event().wait()
     factory, requests, clients = gateway(handler=hang)
     with pytest.raises(AgentError) as error: collect(provider(factory))
     assert error.value.code == 'CLASSIFICATION_UNAVAILABLE'
     assert clients[-1].is_closed()
     async def cancel():
+        nonlocal entered
+        entered = asyncio.Event()
+        monkeypatch.setattr(settings, 'ASSISTANT_CLASSIFICATION_TIMEOUT_SECONDS', 2)
         pending = asyncio.create_task(anext(provider(factory).stream(REQUEST)))
-        await asyncio.sleep(0.005)
+        await asyncio.wait_for(entered.wait(), timeout=1)
         pending.cancel()
         with pytest.raises(asyncio.CancelledError): await pending
     asyncio.run(cancel())
     assert all(client.is_closed() for client in clients)
-    assert len(requests) == 2
+    # The timeout may occur before its HTTP transport starts on a cold runtime.
+    assert 1 <= len(requests) <= 2
+    assert len(clients) == 2
     assert solid_llm._slots.acquire(blocking=False)
     solid_llm._slots.release()
 

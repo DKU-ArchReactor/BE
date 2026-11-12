@@ -99,6 +99,11 @@ def build_snapshot(response, elf):
     previous_memory = initial_memory
     frames = []
     mappings = {}
+    verified_lines = {}
+    analysis = response.get('tutor') or {}
+    if (analysis.get('source_mapping') or {}).get('basis') == 'elf_dwarf':
+        verified_lines = {hexword(word(item['pc'])): item.get('source_line')
+                          for item in analysis.get('asm_instructions', [])}
     for index, cycle in enumerate(history):
         if type(cycle['clock']) is not int or cycle['clock'] != index:
             raise ValueError('Non-contiguous CORE clocks')
@@ -116,19 +121,32 @@ def build_snapshot(response, elf):
             pc = activity.get('pc')
             if pc is not None:
                 key = hexword(word(pc))
-                # CORE emits instruction evidence on stages, not program.code_mapping.
-                # Use the executed instruction and DWARF line from this same run.
+                if key in verified_lines:
+                    stage_data[stage]['source_line'] = small(verified_lines[key])
+                # Keep only executed instruction evidence, with verified file-aware
+                # line corrections from this same run when available.
                 if activity.get('assembly'):
-                    mappings[key] = {name: small(activity[name]) for name in ('assembly', 'source_line') if name in activity}
+                    mappings[key] = {name: stage_data[stage][name] for name in ('assembly', 'source_line') if name in stage_data[stage]}
         frames.append({'clock': index, 'current_pc': hexword(word(state['current_pc'])),
                        'registers': registers, 'metrics': metrics, 'stage_activity': stage_data,
                        'cycle_events': events(cycle.get('cycle_events', {})),
                        'memory_changes': {key: val for key, val in current_memory.items() if previous_memory.get(key) != val},
                        'memory_removed': sorted(set(previous_memory) - set(current_memory))})
         previous_memory = current_memory
-    tutor = simulation_explanations({'history': frames, 'program': {'code_mapping': mappings}})
+    remote_tutor = simulation_explanations({'history': frames, 'program': {'code_mapping': mappings}})
+    # Only persist the evidence projection, never rich source/file metadata or
+    # counters derived from this partial, sanitized trace.
+    tutor = {'schema_version': '1.0', 'available': remote_tutor is not None,
+             'asm_instructions': [], 'cycle_explanations': []}
+    if remote_tutor is not None:
+        tutor['asm_instructions'] = [
+            {key: entry[key] for key in ('pc', 'text', 'source_line', 'explanation', 'runtime_explanation') if key in entry}
+            for entry in remote_tutor['asm_instructions']
+        ]
+        tutor['cycle_explanations'] = remote_tutor['cycle_explanations']
     # Missing DWARF lines do not prove an instruction belongs to CRT startup.
     for instruction in tutor['asm_instructions']:
+        instruction['pc'] = hexword(word(instruction['pc']))
         instruction['runtime_explanation'] = None
     # The existing deterministic tutor operates on exactly the sanitized trace.
     payload = {'schema_version': '1.0', 'execution_id': str(UUID(response['execution_id'])),
@@ -228,6 +246,7 @@ def resolve_context(db, reference, user_id, now=None):
               'stage_activity': frame['stage_activity'], 'cycle_events': frame['cycle_events'],
               'whole_run_summary': summary, 'execution_status': payload['execution_status'],
               'tutor': {'schema_version': payload['tutor']['schema_version'],
+                        'available': payload['tutor'].get('available', True),
                         'asm_instructions': instructions, 'cycle_explanations': cycle_tutor}}
     if len(canonical(output).encode()) > MAX_PROMPT_BYTES:
         raise context_error(413, 'CONTEXT_TOO_LARGE', '선택한 실행 맥락이 너무 큽니다. 메모리 범위를 줄여 주세요.')
