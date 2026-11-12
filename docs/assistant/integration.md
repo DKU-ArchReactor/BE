@@ -29,8 +29,8 @@ OpenAI SDK를 사용하되 요청은 SOLID 주소로만 전송한다. OpenAI/Bed
 | ASSISTANT_CLASSIFICATION_TIMEOUT_SECONDS | 10; 전체 요청 제한 시간 안에 포함 |
 | ASSISTANT_MAX_TOKENS | 2048 (최대 4096) |
 | ASSISTANT_TIMEOUT_SECONDS | 60 |
-| ASSISTANT_DAILY_REQUESTS | 50 |
-| ASSISTANT_COOLDOWN_SECONDS | 10 |
+| ASSISTANT_DAILY_REQUESTS | 500 |
+| ASSISTANT_COOLDOWN_SECONDS | 5 |
 
 활성화 플래그를 켜도 키가 없거나 공백이면 provider를 만들지 않는다. 비활성/미설정 채팅은 로그인 검사 후 503 `AGENT_NOT_CONFIGURED`를 반환하며 사용량을 차감하지 않는다.
 
@@ -42,7 +42,7 @@ OpenAI SDK를 사용하되 요청은 SOLID 주소로만 전송한다. OpenAI/Bed
 
 OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개 upstream 호출, SDK 연결 5초/읽기 20초/전체 라우트 60초 제한이다. 모델 요청은 자동 재시도하지 않는다. 리다이렉트도 따르지 않아 인증정보가 다른 주소로 전달되지 않도록 한다. 완료·실패·취소 시 stream과 client를 닫는다.
 
-사용자당 UTC 기준 50회/일, 요청 간 10초, 최대 20개 메시지, 각 8,000자·합계 24,000자 제한을 유지한다. 활성화된 모델 요청은 실패·취소해도 사용량에 포함된다. DB에는 대화 본문을 저장하지 않는다. 이 한도는 모든 사용자와 키가 공유하는 SOLID 계정 월 한도와 별개다.
+사용자당 UTC 기준 500회/일, 요청 간 5초, 최대 20개 메시지, 각 8,000자·합계 24,000자 제한을 유지한다. 활성화된 모델 요청은 실패·취소해도 사용량에 포함된다. DB에는 대화 본문을 저장하지 않는다. 이 한도는 모든 사용자와 키가 공유하는 SOLID 계정 월 한도와 별개다.
 
 - `delta.content`만 답변으로 전달하고 reasoning/tool 호출을 실행하거나 노출하지 않는다.
 - `stop` → `end_turn`, `length` → `max_tokens`, `content_filter` → `content_filtered`.
@@ -50,6 +50,15 @@ OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개
 - role-only/usage-only 청크를 허용하고 usage가 없으면 `{}`를 전달한다. 0토큰으로 추정하지 않는다.
 - 401/403 → MODEL_ACCESS_DENIED, 402 → MODEL_QUOTA_EXCEEDED, 429 → MODEL_BUSY, SDK timeout → MODEL_TIMEOUT.
 - 공급자의 오류 본문·API 키·사용자 대화는 응답이나 로그에 출력하지 않는다.
+
+## 질문 한도 변경 배포 점검 (500회/일 · 5초)
+
+- 앱 기본값은 `ASSISTANT_DAILY_REQUESTS=500`, `ASSISTANT_COOLDOWN_SECONDS=5`다. 명시적인 운영 환경변수가 있으면 앱 기본값보다 우선한다.
+- 병합 전 서울 `archreactor-core` 환경에서 이 두 설정만 확인한다. 별도 값이 없으면 앱 배포로 적용되며, 이전 50/10 값이 있으면 별도 승인된 환경 설정 변경으로 500/5에 맞춘다. 환경 전체나 비밀값을 출력하지 않는다.
+- `core` 병합은 기존 테스트 및 Beanstalk 자동 배포를 실행한다. 이 변경에 DB 마이그레이션이나 사용량 기록 삭제는 필요 없다. 당일 이미 사용한 횟수도 그대로 이어진다.
+- UTC 자정(한국시간 오전 9시)에 날짜별 한도가 초기화된다. 접수된 요청의 실패·취소·주제 판별 결과도 기존처럼 한 번 차감하며, SOLID 공유 한도·동시 실행 제한은 변경하지 않는다.
+- 배포 후 버전·상태와 실제 적용된 두 설정을 확인하고 로그인 질문 1회 및 SSE 완료를 점검한다. 실제 모델로 500회 요청을 소진하지 않는다. 500번째 허용·501번째 거절, 4.999초 거절·5초 허용, 사용자 분리·UTC 초기화는 로컬 회귀 테스트로 검증한다.
+- 롤백은 이전 앱 버전과 변경 전 환경값을 함께 복원한다. 일일 한도를 낮추면 이미 그 횟수 이상 사용한 사용자는 다음 UTC 날짜까지 제한될 수 있다.
 
 ## 비활성 배포 및 활성화 순서
 
