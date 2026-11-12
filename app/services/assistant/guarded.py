@@ -13,9 +13,10 @@ class GuardedProvider:
         self.answer_factory = answer_factory or SolidLLMProvider
 
     async def stream(self, request):
-        observation = Observation()
+        observation = Observation(request._request_id)
         outcome = 'interrupted'
         try:
+            request._processing_stage = 'classification'
             decision = await self.classifier.classify(request, observation)
             if decision != Decision.ALLOW:
                 text = FIXED_RESPONSES[decision]
@@ -24,6 +25,7 @@ class GuardedProvider:
                 yield {'type': 'done', 'stop_reason': 'end_turn', 'usage': {}}
                 return
             # Construct the answer provider only after ALLOW; no answer call on refusals.
+            request._processing_stage = 'answer'
             answer = self.answer_factory(usage_observer=lambda usage: observation.record('answer', usage))
             async with aclosing(answer.stream(request)) as stream:
                 async for event in stream:
