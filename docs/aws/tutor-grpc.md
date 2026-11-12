@@ -43,3 +43,15 @@ The BE `TutorGrpcTarget` CloudFormation parameter configures the upstream. When 
 TUTOR tests cover a real gRPC round trip, health and invalid inputs. BE tests cover REST -> gRPC, contract mismatches, upstream errors, deadline and cancellation. CodeBuild runs tests and builds the images; the TUTOR build also starts a read-only container and calls its health and Sample RPCs.
 
 CloudFormation templates pass cfn-lint and scoped cfn-guard rules. Change sets are reviewed before execution. The account currently has no configured CloudTrail trail; management event history is available but there is no durable trail retention. This work does not change audit logging.
+
+## Deployment verification (2026-11-12)
+
+- TUTOR CloudFormation `CREATE_COMPLETE`, ECS deployment `COMPLETED`, task `HEALTHY`.
+- BE CloudFormation `UPDATE_COMPLETE`, environment `Ready / Green`.
+- TUTOR image version: `tutor-a4e09bc31ce16f09`.
+- BE version: `tutor-be-4b7662c8176e6c66`, built from base `1c60eb9` plus this integration.
+- CodeBuild backend tests: 124 passed, 7 skipped. Local transport tests: 8 passed. TUTOR tests: 5 passed.
+- Live HTTPS smoke: English and Korean requests returned HTTP 200 from TUTOR; four invalid requests returned HTTP 422.
+- Run `python scripts/smoke-tutor-api.py` to repeat the public check.
+- Prior BE version for rollback: `core-1c60eb9dcf49c72f4f6bc69bddba558eaba96c76-43142493712-1`. Set `ExistingApplicationVersion` to the chosen version through a reviewed change set. Keeping the added TUTOR settings is harmless to that older version.
+- Public TUTOR source uses deployment parameters; actual account/resource names are only in its ignored local config. Its deployment script now requires `--config`.
