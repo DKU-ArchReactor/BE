@@ -10,6 +10,10 @@ Parameters:
     Default: 64bit Amazon Linux 2023 v4.13.11 running Docker
   BundleBucket: {Type: String}
   BundleKey: {Type: String}
+  ExistingApplicationVersion:
+    Type: String
+    Default: ''
+    Description: Current Beanstalk version for configuration-only updates; refresh from DescribeEnvironments before every update
   VpcId: {Type: 'AWS::EC2::VPC::Id'}
   PublicSubnetId: {Type: 'AWS::EC2::Subnet::Id'}
   AppSecurityGroupId: {Type: 'AWS::EC2::SecurityGroup::Id'}
@@ -47,6 +51,7 @@ Parameters:
     AllowedValues: ['true', 'false']
     Description: Redirect HTTP API paths only after CloudFront uses HTTPS to the origin
 Conditions:
+  HasExistingApplicationVersion: !Not [!Equals [!Ref ExistingApplicationVersion, '']]
   HasSolidLlmSecret: !Not [!Equals [!Ref SolidLlmApiKeySecretArn, '']]
 Resources:
   Application:
@@ -67,7 +72,8 @@ Resources:
       EnvironmentName: archreactor-core
       CNAMEPrefix: !Sub 'archreactor-core-${AWS::AccountId}'
       SolutionStackName: !Ref SolutionStack
-      VersionLabel: !Ref Version
+      # CI deploys app versions independently; preserve the live version on config updates.
+      VersionLabel: !If [HasExistingApplicationVersion, !Ref ExistingApplicationVersion, !Ref Version]
       Tier: {Name: WebServer, Type: Standard}
       OptionSettings:
         - {Namespace: 'aws:elasticbeanstalk:environment', OptionName: EnvironmentType, Value: SingleInstance}
