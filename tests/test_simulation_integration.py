@@ -144,3 +144,45 @@ def test_http_rejects_another_users_build_before_core_execution(api):
     db.get.return_value.file.project.user_id = 'another-user'
     status, body = execute(app, 'single')
     assert status == 403 and body['detail'] == 'Access denied'
+
+
+@pytest.mark.parametrize('mode', ['single', 'pipeline'])
+def test_real_core_context_matches_every_selected_cycle(api, mode, tmp_path):
+    from datetime import datetime, timezone
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from app.core.database import Base
+    import app.models
+    from app.models.user import User
+    from app.schemas.execution_context import ExecutionContextReference
+    from app.services.assistant.context import build_snapshot, store_snapshot, resolve_context
+    app, storage = api
+    status, body = execute(app, mode)
+    assert status == 200
+    payload, version = build_snapshot(body, storage['data'])
+    assert payload['tutor']['asm_instructions'], 'Real CORE has no program.code_mapping; derive executed instructions'
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    now = datetime.now(timezone.utc)
+    with Session(engine) as db:
+        db.add(User(user_id='owner', email='owner@example.invalid', password_hash='unused', name='owner'))
+        db.commit()
+        descriptor = store_snapshot(db, 'owner', payload, version, now)
+        for index, cycle in enumerate(body['result']['history']):
+            state = cycle['global_result']
+            addresses = [int(address, 16) for address in state['memory_snapshot']][:16]
+            ref = ExecutionContextReference(**{k: descriptor[k] for k in
+                ('execution_id', 'result_version', 'artifact_sha256', 'mode')}, cycle=index, memory_addresses=addresses)
+            projected = resolve_context(db, ref, 'owner', now)
+            assert projected['registers'] == {key: value.lower() for key, value in state['registers'].items()}
+            assert projected['selected_memory_words'] == {f'0x{address:08x}': next(value.lower() for key, value in
+                state['memory_snapshot'].items() if int(key, 16) == address) for address in addresses}
+            for counter in ('accumulated_stalls', 'accumulated_forwards', 'accumulated_instructions'):
+                assert projected['metrics_at_selected_cycle'][counter] == state['metrics'][counter]
+            retired = state['metrics']['accumulated_instructions']
+            assert projected['metrics_at_selected_cycle']['cpi'] == ((index+1)/retired if retired else None)
+            kinds = {e['type'] for c in projected['tutor']['cycle_explanations'] for e in c['events']}
+            for kind, name, flag in [('stall', 'stall', 'has_stall'), ('forwarding', 'forwarding', 'has_forwarded'),
+                                     ('flush', 'control_hazard', 'has_flush')]:
+                assert (kind in kinds) == bool(cycle['cycle_events'][name][flag])
+    engine.dispose()

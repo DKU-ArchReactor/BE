@@ -2,6 +2,7 @@
 import json
 import logging
 from uuid import uuid4
+from time import perf_counter
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,13 @@ class Observation:
     def __init__(self):
         self.request_id = uuid4().hex
         self.usage = {}
+        self.started = perf_counter()
+        self.stage_started = {}
+        self.stage_duration_ms = {}
 
     def record(self, stage, usage):
+        self.stage_started.setdefault(stage, perf_counter())
+        self.stage_duration_ms[stage] = round((perf_counter() - self.stage_started[stage]) * 1000, 2)
         self.usage[stage] = {key: value for key, value in usage.items()
                              if key in TOKEN_KEYS and type(value) is int and value >= 0}
 
@@ -39,4 +45,6 @@ class Observation:
         total = {key: sum(stage[key] for stage in self.usage.values())
                  for key in TOKEN_KEYS if self.usage and all(key in stage for stage in self.usage.values())}
         logger.info(json.dumps({'event': 'assistant_usage', 'requestId': self.request_id,
-                               'outcome': outcome, 'stages': self.usage, 'total': total}))
+                               'outcome': outcome, 'stages': self.usage, 'total': total,
+                               'elapsed_ms': round((perf_counter() - self.started) * 1000, 2),
+                               'stage_usage_received_ms': self.stage_duration_ms}))

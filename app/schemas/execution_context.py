@@ -1,17 +1,25 @@
-"""실행 컨텍스트 분석기: future read-only context contract, not connected."""
-from typing import Literal, Protocol
+"""Explicit references to an owned, immutable execution snapshot; no agent tools."""
+from typing import Annotated, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+Digest = Annotated[str, Field(pattern=r'^[0-9a-f]{64}$')]
+Address = Annotated[int, Field(strict=True, ge=0, le=0xffffffff)]
+
 
 class ExecutionContextReference(BaseModel):
-    """Reserved for a future authorized, read-only execution context provider."""
+    model_config = ConfigDict(extra='forbid')
     execution_id: UUID
+    result_version: Digest
+    artifact_sha256: Digest
     mode: Literal['single', 'pipeline']
-    cycle: int | None = Field(default=None, ge=0)
-    source_line: int | None = Field(default=None, ge=1)
+    # CORE clock is zero-based; cycle 0 means state AFTER the first clock.
+    cycle: int = Field(ge=0, le=1999, strict=True)
+    memory_addresses: list[Address] = Field(default_factory=list, max_length=16)
 
-
-class ExecutionContextProvider(Protocol):
-    async def resolve(self, reference: ExecutionContextReference, *, user_id: str) -> dict:
-        """Implementations must check ownership before retrieving any execution data."""
-        ...
+    @field_validator('memory_addresses')
+    @classmethod
+    def aligned_unique_words(cls, values):
+        if len(values) != len(set(values)) or any(value % 4 for value in values):
+            raise ValueError('Specify unique four-byte-aligned word addresses')
+        return values

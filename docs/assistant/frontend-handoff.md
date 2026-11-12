@@ -1,5 +1,7 @@
 # 프론트 인수인계: 규칙 기반 튜터와 AI 어시스턴트
 
+> 후속 백엔드 PR의 선택 실행 맥락 계약은 [실행 맥락 인수인계](execution-context-handoff.md)를 참고한다. 아직 새 PR 배포/프론트 반영 전이며, 아래 기존 메시지 전용 계약도 유지된다. 전체 실행 자동 조회는 계속 보류다.
+
 ## 반영 상태와 순서
 
 - 튜터 BE PR: https://github.com/DKU-ArchReactor/BE/pull/3 (병합됨). 튜터 FE PR: https://github.com/DKU-ArchReactor/FE/pull/18 (미병합).

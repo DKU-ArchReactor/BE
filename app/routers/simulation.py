@@ -5,6 +5,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
@@ -17,6 +18,7 @@ from app.models.user import User
 from app.schemas.simulation import SimulationRequest, SimulationResponse
 from app.services.simulation_service import MAX_ELF, run_simulation
 from app.services.tutor import simulation_explanations
+from app.services.assistant.context import build_snapshot, store_snapshot
 
 router = APIRouter(prefix='/api/v1/simulation', tags=['simulation'])
 
@@ -40,6 +42,8 @@ def owned_binary(db, user, build_id):
 ))
 async def simulate(body: SimulationRequest, request: Request,
                    db: Session = Depends(get_db), user: User | None = Depends(get_current_user_optional)):
+    if body.capture_assistant_context and user is None:
+        raise HTTPException(401, 'Authentication required to capture assistant context')
     handler_start = time.perf_counter()
     timings = {}
     lookup_start = time.perf_counter()
@@ -59,6 +63,15 @@ async def simulate(body: SimulationRequest, request: Request,
         raise HTTPException(413, 'ELF exceeds 256 KiB') from None
     result = await run_simulation(elf, body.mode, body.max_cycles, request.is_disconnected, timings=timings)
     result["tutor"] = simulation_explanations(result["result"])
+    if body.capture_assistant_context:
+        try:
+            payload, version = await run_in_threadpool(build_snapshot, result, elf)
+            result['assistant_context'] = await run_in_threadpool(store_snapshot, db, user.user_id, payload, version)
+        except (ValueError, KeyError, TypeError):
+            result['assistant_context'] = {'available': False, 'code': 'CONTEXT_UNSUPPORTED_RESULT'}
+        except SQLAlchemyError:
+            await run_in_threadpool(db.rollback)
+            result['assistant_context'] = {'available': False, 'code': 'CONTEXT_STORAGE_UNAVAILABLE'}
     prepare_start = time.perf_counter()
     result = jsonable_encoder(result)
     timings['be-json-prepare'] = (time.perf_counter() - prepare_start) * 1000

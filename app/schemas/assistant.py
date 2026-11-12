@@ -1,5 +1,8 @@
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
+
+
+from app.schemas.execution_context import ExecutionContextReference
 
 
 class ChatMessage(BaseModel):
@@ -18,6 +21,8 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     messages: list[ChatMessage] = Field(min_length=1, max_length=20)
+    context: ExecutionContextReference | None = None
+    _execution_context: dict | None = PrivateAttr(default=None)
 
     @model_validator(mode='after')
     def validate_conversation(self):
