@@ -4,6 +4,7 @@ Run: python -m scripts.evaluate_assistant_context
 Only labels, numeric usage and pass/fail are printed. No prompts or answer bodies.
 This checks factual extraction and abstention, not every natural-language explanation.
 """
+import argparse
 import asyncio
 import json
 import logging
@@ -59,6 +60,7 @@ async def evaluate(cases):
                     # Evaluation parser only. Server classification remains strict JSON.
                     start, end = body.find('{'), body.rfind('}')
                     parsed = json.loads(body[start:end+1])
+                    record['complete'] = bool(events and events[-1].get('type') == 'done' and events[-1].get('stop_reason') == 'end_turn')
                     record['facts_match'] = matches(parsed, case['expected'])
                     record['mismatch_fields'] = [k for k, v in case['expected'].items()
                         if not isinstance(parsed, dict) or k not in parsed or not matches(parsed[k], v)]
@@ -67,7 +69,7 @@ async def evaluate(cases):
                     record['reference_match'] = events[-1].get('context') == (
                         case['context']['reference'] if case['context'] else None)
             record['passed'] = (record['decision'] == case['decision'] and record.get('facts_match', True)
-                                and record.get('reference_match', True))
+                                and record.get('reference_match', True) and record.get('complete', True))
         except Exception as error:
             record['passed'] = False
             record['error_type'] = type(error).__name__
@@ -79,8 +81,10 @@ async def evaluate(cases):
 
 def main():
     logging.disable(logging.CRITICAL)
-    cases = json.loads((Path(__file__).resolve().parents[1] /
-                       'tests/fixtures/assistant_context_cases.json').read_text())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cases', type=Path, default=Path(__file__).resolve().parents[1] / 'tests/fixtures/assistant_context_cases.json')
+    args = parser.parse_args()
+    cases = json.loads(args.cases.read_text())
     print(json.dumps(asyncio.run(evaluate(cases)), ensure_ascii=False))
 
 
