@@ -166,7 +166,7 @@ def test_shared_daily_quota_persists_across_sessions(monkeypatch):
 def test_readiness_endpoints_do_not_construct_model_or_use_database(monkeypatch):
     monkeypatch.setattr(settings, 'ASSISTANT_ENABLED', False)
     # Call the status function directly; transport stream is exercised below.
-    assert assistant.status() == {'enabled': False, 'code': 'AGENT_NOT_CONFIGURED'}
+    assert assistant.status() == {'enabled': False, 'code': 'AGENT_NOT_CONFIGURED', 'editor_source_supported': True}
     response = assistant.transport_check()
     assert response.headers['content-type'].startswith('text/event-stream')
     assert response.headers['x-accel-buffering'] == 'no'

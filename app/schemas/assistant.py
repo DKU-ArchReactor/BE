@@ -18,10 +18,27 @@ class ChatMessage(BaseModel):
         return value
 
 
+class EditorSource(BaseModel):
+    """Untrusted current editor text, captured for this question only."""
+    model_config = ConfigDict(extra='forbid', strict=True)
+    language: Literal['c', 'asm']
+    content: str = Field(min_length=1, max_length=12000)
+
+    @field_validator('content')
+    @classmethod
+    def nonblank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError('Editor source must not be blank')
+        if len(value.encode('utf-8')) > 48000:
+            raise ValueError('Editor source exceeds byte limit')
+        return value
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     messages: list[ChatMessage] = Field(min_length=1, max_length=20)
     context: ExecutionContextReference | None = None
+    editor_source: EditorSource | None = None
     _execution_context: dict | None = PrivateAttr(default=None)
 
     @model_validator(mode='after')

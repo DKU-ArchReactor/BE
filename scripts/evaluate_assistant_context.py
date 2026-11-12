@@ -34,7 +34,8 @@ def matches(actual, expected):
 async def evaluate(cases):
     records = []
     for case in cases:
-        request = ChatRequest(messages=[{'role': 'user', 'content': case['question']}])
+        request = ChatRequest(messages=[{'role': 'user', 'content': case['question']}],
+                              editor_source=case.get('editor_source'))
         request._execution_context = case['context']  # Trusted synthetic fixture, never an HTTP input.
         observation = Observation()
         record = {'id': case['id'], 'expected_decision': case['decision']}

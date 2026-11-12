@@ -21,7 +21,8 @@ router = APIRouter(prefix='/api/v1/assistant', tags=['assistant'])
 @router.get('/status', summary='AI 연결 준비 상태')
 def status():
     enabled = assistant_ready()
-    return {'enabled': enabled, 'code': 'ENABLED' if enabled else 'AGENT_NOT_CONFIGURED'}
+    return {'enabled': enabled, 'code': 'ENABLED' if enabled else 'AGENT_NOT_CONFIGURED',
+            'editor_source_supported': True}
 
 
 @router.get('/transport-check', summary='모델 호출 없는 SSE 통신 점검',
