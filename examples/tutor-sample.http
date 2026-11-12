@@ -1,0 +1,5 @@
+### Public sample: BE REST -> private TUTOR gRPC
+POST https://d1j3nkcez6kncs.cloudfront.net/api/v1/tutor/sample
+Content-Type: application/json
+
+{"message":"Hello TUTOR"}
