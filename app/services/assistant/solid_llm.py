@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.schemas.assistant import ChatRequest
 from app.services.assistant.agent import AgentError
 from app.services.assistant.prompt import SYSTEM_PROMPT
+from app.services.assistant.telemetry import token_usage
 
 # Nonblocking admission shared within a worker, also safe across event loops.
 _slots = BoundedSemaphore(8)
@@ -49,13 +50,15 @@ def public_error(error: APIError) -> AgentError:
 
 
 class SolidLLMProvider:
-    def __init__(self, client_factory=None):
+    def __init__(self, client_factory=None, usage_observer=None):
         self.client_factory = client_factory or gateway_client
+        self.usage_observer = usage_observer or (lambda usage: None)
 
     async def stream(self, request: ChatRequest) -> AsyncIterator[dict]:
         if not _slots.acquire(blocking=False):
             raise AgentError('MODEL_BUSY', 'AI 요청이 많습니다. 잠시 후 다시 시도해 주세요.')
         try:
+            self.usage_observer({})
             async with self.client_factory() as client:
                 options = {}
                 if settings.SOLID_LLM_INCLUDE_USAGE:
@@ -74,12 +77,8 @@ class SolidLLMProvider:
                 async with stream:
                     async for chunk in stream:
                         if chunk.usage is not None:
-                            for source, target in (('prompt_tokens', 'inputTokens'),
-                                                   ('completion_tokens', 'outputTokens'),
-                                                   ('total_tokens', 'totalTokens')):
-                                value = getattr(chunk.usage, source, None)
-                                if type(value) is int and value >= 0:
-                                    usage[target] = value
+                            usage.update(token_usage(chunk.usage))
+                            self.usage_observer(usage)
                         # Role-only chunks and final usage-only chunks are valid.
                         for choice in chunk.choices or []:
                             if choice.index != 0:

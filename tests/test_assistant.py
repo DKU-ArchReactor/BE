@@ -21,7 +21,7 @@ from app.services.assistant.usage import reserve_request
 PAYLOAD = {'messages': [{'role': 'user', 'content': '스톨이 뭐야?'}]}
 
 
-async def call(app, payload=PAYLOAD, disconnect_on_delta=False):
+async def call(app, payload=PAYLOAD, disconnect_on_delta=False, disconnect_after=None):
     output = []
     initial = True
     disconnect = asyncio.Event()
@@ -31,6 +31,9 @@ async def call(app, payload=PAYLOAD, disconnect_on_delta=False):
         if initial:
             initial = False
             return {'type': 'http.request', 'body': json.dumps(payload).encode(), 'more_body': False}
+        if disconnect_after is not None:
+            await asyncio.sleep(disconnect_after)
+            disconnect.set()
         await disconnect.wait()
         return {'type': 'http.disconnect'}
 

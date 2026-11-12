@@ -12,6 +12,10 @@ from app.routers import files as files_router
 from app.routers import simulation as simulation_router
 from app.routers import professor as professor_router
 
+from app.services.assistant.telemetry import configure_usage_logging
+
+configure_usage_logging()
+
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
 app.add_middleware(
     CORSMiddleware,

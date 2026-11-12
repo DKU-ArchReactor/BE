@@ -30,8 +30,11 @@ class Settings(BaseSettings):
     SOLID_LLM_BASE_URL: str = "https://dku-chat.kloud.zone/llm/v1"
     SOLID_LLM_MODEL: str = Field(default="local/qwen3-coder-next", min_length=1, max_length=256)
     SOLID_LLM_API_KEY: SecretStr = SecretStr("")
-    # Optional compatibility flag: enable only after validating gateway support.
-    SOLID_LLM_INCLUDE_USAGE: bool = False
+    # Verified on the current gateway; missing usage still remains unknown.
+    SOLID_LLM_INCLUDE_USAGE: bool = True
+    # Verified with the current SOLID model. Re-probe when gateway/model changes.
+    SOLID_LLM_CLASSIFICATION_FORMAT: Literal["none", "json_schema"] = "json_schema"
+    ASSISTANT_CLASSIFICATION_TIMEOUT_SECONDS: float = Field(default=10, ge=1, le=30)
     ASSISTANT_MAX_TOKENS: int = Field(default=2048, ge=1, le=4096)
     ASSISTANT_TIMEOUT_SECONDS: float = Field(default=60, ge=5, le=120)
     ASSISTANT_DAILY_REQUESTS: int = Field(default=50, ge=1, le=1000)
