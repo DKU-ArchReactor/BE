@@ -149,13 +149,14 @@ def test_shared_daily_quota_persists_across_sessions(monkeypatch):
     engine = create_engine('sqlite://')
     AssistantUsage.__table__.create(engine)
     monkeypatch.setattr(settings, 'ASSISTANT_DAILY_REQUESTS', 2)
+    monkeypatch.setattr(settings, 'ASSISTANT_COOLDOWN_SECONDS', 5)
     now = datetime(2026, 11, 9, tzinfo=timezone.utc)
     with Session(engine) as db:
         reserve_request(db, 'alice', now=now)
     with Session(engine) as db:
         with pytest.raises(HTTPException):
-            reserve_request(db, 'alice', now=now + timedelta(seconds=1))
-        reserve_request(db, 'alice', now=now + timedelta(seconds=10))
+            reserve_request(db, 'alice', now=now + timedelta(seconds=4.999))
+        reserve_request(db, 'alice', now=now + timedelta(seconds=5))
         with pytest.raises(HTTPException):
             reserve_request(db, 'alice', now=now + timedelta(seconds=20))
         reserve_request(db, 'bob', now=now)
@@ -178,3 +179,20 @@ def test_readiness_endpoints_do_not_construct_model_or_use_database(monkeypatch)
     assert len(frames) == 2
     assert '"diagnostic"' in frames[0] and '"done"' in frames[1]
     assert all('"model_invoked": false' in frame for frame in frames)
+
+
+def test_500_request_daily_boundary_and_utc_reset(monkeypatch):
+    engine = create_engine('sqlite://')
+    AssistantUsage.__table__.create(engine)
+    monkeypatch.setattr(settings, 'ASSISTANT_DAILY_REQUESTS', 500)
+    monkeypatch.setattr(settings, 'ASSISTANT_COOLDOWN_SECONDS', 5)
+    now = datetime(2026, 11, 13, 22, tzinfo=timezone.utc)
+    with Session(engine) as db:
+        for index in range(500):
+            reserve_request(db, 'quota-500', now=now + timedelta(seconds=5 * index))
+        with pytest.raises(HTTPException) as error:
+            reserve_request(db, 'quota-500', now=now + timedelta(seconds=2500))
+        assert error.value.status_code == 429
+        reserve_request(db, 'other-user', now=now + timedelta(seconds=2500))
+        reserve_request(db, 'quota-500', now=datetime(2026, 11, 14, tzinfo=timezone.utc))
+        assert sorted(db.scalars(select(AssistantUsage.request_count))) == [1, 1, 500]

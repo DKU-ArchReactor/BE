@@ -61,8 +61,8 @@ flowchart TD
 | ASSISTANT_CLASSIFICATION_TIMEOUT_SECONDS | 10 | 판별 전체 제한, 1~30초 |
 | SOLID_LLM_INCLUDE_USAGE | true | 검증된 스트림 사용량 옵션. 기존 명시적 false 환경값은 우선함 |
 | ASSISTANT_TIMEOUT_SECONDS | 60 | 판별+답변 전체 제한 |
-| ASSISTANT_DAILY_REQUESTS | 50 | 사용자별 UTC 일일 요청 수 |
-| ASSISTANT_COOLDOWN_SECONDS | 10 | 사용자별 요청 간격 |
+| ASSISTANT_DAILY_REQUESTS | 500 | 사용자별 UTC 일일 요청 수 |
+| ASSISTANT_COOLDOWN_SECONDS | 5 | 사용자별 요청 간격 |
 
 판별 출력은 128토큰, temperature=0이다. 기존 답변 한도는 2,048토큰이다.
 두 단계는 워커당 8개 upstream 호출 상한을 공유하며 자동 재시도하지 않는다.

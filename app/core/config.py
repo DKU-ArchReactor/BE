@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     ASSISTANT_TIMEOUT_SECONDS: float = Field(default=60, ge=5, le=120)
     ASSISTANT_CONTEXT_TTL_SECONDS: int = Field(default=1800, ge=60, le=3600)
     ASSISTANT_CONTEXT_MAX_SNAPSHOTS: int = Field(default=3, ge=1, le=5)
-    ASSISTANT_DAILY_REQUESTS: int = Field(default=50, ge=1, le=1000)
-    ASSISTANT_COOLDOWN_SECONDS: int = Field(default=10, ge=1, le=60)
+    ASSISTANT_DAILY_REQUESTS: int = Field(default=500, ge=1, le=1000)
+    ASSISTANT_COOLDOWN_SECONDS: int = Field(default=5, ge=1, le=60)
     AWS_S3_BUCKET: str = ""
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
