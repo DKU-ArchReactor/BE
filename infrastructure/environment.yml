@@ -32,6 +32,10 @@ Parameters:
     Default: ''
     AllowedPattern: '^$|^arn:aws:secretsmanager:ap-northeast-2:242925688392:secret:[A-Za-z0-9/_+=.@-]+$'
     Description: Existing Seoul secret ARN containing a top-level api_key field; never pass the key value
+  TutorGrpcTarget:
+    Type: String
+    Default: ''
+    Description: Private TUTOR gRPC endpoint; empty disables the sample route upstream
   CoreGrpcTarget:
     Type: String
     Default: ''
@@ -67,6 +71,10 @@ Resources:
       SourceBundle: {S3Bucket: !Ref BundleBucket, S3Key: !Ref BundleKey}
   Environment:
     Type: AWS::ElasticBeanstalk::Environment
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: BE remains the public REST entry point and calls TUTOR through private gRPC
+        must: [Preserve the live application version unless intentionally deploying a new one, Keep existing CORE and assistant configuration]
     Properties:
       ApplicationName: !Ref Application
       EnvironmentName: archreactor-core
@@ -95,6 +103,8 @@ Resources:
         - {Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: DeleteOnTerminate, Value: 'false'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: APP_NAME, Value: ArchReactor}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: DEBUG, Value: 'false'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: TUTOR_GRPC_TARGET, Value: !Ref TutorGrpcTarget}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: TUTOR_GRPC_TIMEOUT_SECONDS, Value: '5'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TARGET, Value: !Ref CoreGrpcTarget}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TIMEOUT_SECONDS, Value: '12'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_REGION, Value: !Ref 'AWS::Region'}

@@ -1,0 +1,17 @@
+syntax = "proto3";
+package archreactor.tutor.v1;
+
+// Connectivity sample only. Real tutoring will use separate RPCs.
+service Tutor { rpc Sample(SampleRequest) returns (SampleResponse); }
+message SampleRequest {
+  string request_id = 1;
+  string message = 2;
+}
+message SampleResponse {
+  string request_id = 1;
+  string schema_version = 2;
+  string tutor_version = 3;
+  string message = 4;
+  string reply = 5;
+  bool sample = 6;
+}

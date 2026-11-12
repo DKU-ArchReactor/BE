@@ -1,0 +1,10 @@
+rule tutor_upstream_config {
+  Resources.Environment.Properties.OptionSettings[ OptionName == 'TUTOR_GRPC_TARGET' ] {
+    Namespace == 'aws:elasticbeanstalk:application:environment'
+    Value.Ref == 'TutorGrpcTarget'
+  }
+  Resources.Environment.Properties.OptionSettings[ OptionName == 'TUTOR_GRPC_TIMEOUT_SECONDS' ] {
+    Value == '5'
+  }
+  Parameters.TutorGrpcTarget.Default == ''
+}
