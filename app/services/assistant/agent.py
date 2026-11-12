@@ -27,5 +27,5 @@ def assistant_ready() -> bool:
 def get_agent_provider() -> AgentProvider | None:
     if not assistant_ready():
         return None
-    from app.services.assistant.solid_llm import SolidLLMProvider
-    return SolidLLMProvider()
+    from app.services.assistant.guarded import GuardedProvider
+    return GuardedProvider()

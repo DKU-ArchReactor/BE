@@ -24,7 +24,9 @@ OpenAI SDK를 사용하되 요청은 SOLID 주소로만 전송한다. OpenAI/Bed
 | SOLID_LLM_BASE_URL | https://dku-chat.kloud.zone/llm/v1; 인증정보·query·fragment 없는 HTTPS |
 | SOLID_LLM_MODEL | local/qwen3-coder-next |
 | SOLID_LLM_API_KEY | 빈 값; 운영에서는 Secrets Manager 참조로 주입 |
-| SOLID_LLM_INCLUDE_USAGE | false; gateway의 stream_options 지원 검증 후에만 true |
+| SOLID_LLM_INCLUDE_USAGE | true; 현재 gateway에서 검증. 명시적 환경값 false는 유지 |
+| SOLID_LLM_CLASSIFICATION_FORMAT | json_schema; 현재 모델에서 검증, 미지원 gateway는 none으로 명시 |
+| ASSISTANT_CLASSIFICATION_TIMEOUT_SECONDS | 10; 전체 요청 제한 시간 안에 포함 |
 | ASSISTANT_MAX_TOKENS | 2048 (최대 4096) |
 | ASSISTANT_TIMEOUT_SECONDS | 60 |
 | ASSISTANT_DAILY_REQUESTS | 50 |
@@ -89,3 +91,12 @@ OpenAI SDK AsyncOpenAI 및 비동기 HTTP로 전달한다. 워커당 최대 8개
 - 검증 후 임시 사용자와 해당 사용량 기록을 삭제했다. 재조회 결과 두 테이블 모두 해당 테스트 ID의 행은 0개였다.
 - API 키, 임시 비밀번호, 로그인 토큰, 실제 사용자 정보는 검증 출력에 기록하지 않았다.
 - 프론트 배포는 계속 보류하며 실행 컨텍스트 분석기는 미연결이다.
+
+
+## 주제 판별 도메인 제한 (구현 완료 후 별도 배포 필요)
+
+인증·요청 한도 예약 뒤 SOLID 주제 판별을 수행하고 ALLOW일 때만 답변을 생성한다.
+범위 밖·확인 요청·인사는 고정 delta → done, 판별 장애는 기존 error 이벤트로 반환한다.
+요청당 quota 1회, 기존 messages/SSE 계약을 유지하며 원문 로깅·자동 실행 맥락 조회를 추가하지 않는다.
+세부 정책·설정·사용량 합산·검증 한계는 [도메인 제한 문서](domain-policy.md)를 참조한다.
+이 변경은 운영 미배포이며, 위 11월 11~12일 기존 연결 검증과 구분해야 한다.
