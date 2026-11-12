@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1dtutor_contract/v1/tutor.proto\x12\x14\x61rchreactor.tutor.v1\"4\n\rSampleRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x83\x01\n\x0eSampleResponse\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x16\n\x0eschema_version\x18\x02 \x01(\t\x12\x15\n\rtutor_version\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\r\n\x05reply\x18\x05 \x01(\t\x12\x0e\n\x06sample\x18\x06 \x01(\x08\x32\\\n\x05Tutor\x12S\n\x06Sample\x12#.archreactor.tutor.v1.SampleRequest\x1a$.archreactor.tutor.v1.SampleResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1dtutor_contract/v1/tutor.proto\x12\x14\x61rchreactor.tutor.v1\"4\n\rSampleRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x83\x01\n\x0eSampleResponse\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x16\n\x0eschema_version\x18\x02 \x01(\t\x12\x15\n\rtutor_version\x18\x03 \x01(\t\x12\x0f\n\x07message\x18\x04 \x01(\t\x12\r\n\x05reply\x18\x05 \x01(\t\x12\x0e\n\x06sample\x18\x06 \x01(\x08\"]\n\x0b\x45xplainItem\x12\x0c\n\x04kind\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\x12\x11\n\x04line\x18\x03 \x01(\x05H\x00\x88\x01\x01\x12\x0f\n\x02pc\x18\x04 \x01(\tH\x01\x88\x01\x01\x42\x07\n\x05_lineB\x05\n\x03_pc\"V\n\x0e\x45xplainRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x30\n\x05items\x18\x02 \x03(\x0b\x32!.archreactor.tutor.v1.ExplainItem\"f\n\x0e\x43ompileRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x0e\n\x06source\x18\x02 \x01(\t\x12\x0c\n\x04lang\x18\x03 \x01(\t\x12\x15\n\x08\x61ssembly\x18\x04 \x01(\tH\x00\x88\x01\x01\x42\x0b\n\t_assembly\"k\n\x0e\x41nalyzeRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x13\n\x0bresult_json\x18\x02 \x01(\t\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x13\n\x0bsource_file\x18\x04 \x01(\t\x12\x0b\n\x03\x65lf\x18\x05 \x01(\x0c\"g\n\rTutorResponse\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x16\n\x0eschema_version\x18\x02 \x01(\t\x12\x15\n\rtutor_version\x18\x03 \x01(\t\x12\x13\n\x0bresult_json\x18\x04 \x01(\t2\xde\x02\n\x05Tutor\x12S\n\x06Sample\x12#.archreactor.tutor.v1.SampleRequest\x1a$.archreactor.tutor.v1.SampleResponse\x12T\n\x07\x45xplain\x12$.archreactor.tutor.v1.ExplainRequest\x1a#.archreactor.tutor.v1.TutorResponse\x12T\n\x07\x43ompile\x12$.archreactor.tutor.v1.CompileRequest\x1a#.archreactor.tutor.v1.TutorResponse\x12T\n\x07\x41nalyze\x12$.archreactor.tutor.v1.AnalyzeRequest\x1a#.archreactor.tutor.v1.TutorResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,6 +35,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SAMPLEREQUEST']._serialized_end=107
   _globals['_SAMPLERESPONSE']._serialized_start=110
   _globals['_SAMPLERESPONSE']._serialized_end=241
-  _globals['_TUTOR']._serialized_start=243
-  _globals['_TUTOR']._serialized_end=335
+  _globals['_EXPLAINITEM']._serialized_start=243
+  _globals['_EXPLAINITEM']._serialized_end=336
+  _globals['_EXPLAINREQUEST']._serialized_start=338
+  _globals['_EXPLAINREQUEST']._serialized_end=424
+  _globals['_COMPILEREQUEST']._serialized_start=426
+  _globals['_COMPILEREQUEST']._serialized_end=528
+  _globals['_ANALYZEREQUEST']._serialized_start=530
+  _globals['_ANALYZEREQUEST']._serialized_end=637
+  _globals['_TUTORRESPONSE']._serialized_start=639
+  _globals['_TUTORRESPONSE']._serialized_end=742
+  _globals['_TUTOR']._serialized_start=745
+  _globals['_TUTOR']._serialized_end=1095
 # @@protoc_insertion_point(module_scope)

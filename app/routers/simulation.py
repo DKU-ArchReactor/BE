@@ -62,7 +62,9 @@ async def simulate(body: SimulationRequest, request: Request,
     except ValueError:
         raise HTTPException(413, 'ELF exceeds 256 KiB') from None
     result = await run_simulation(elf, body.mode, body.max_cycles, request.is_disconnected, timings=timings)
-    result["tutor"] = simulation_explanations(result["result"])
+    result["tutor"] = await run_in_threadpool(
+        simulation_explanations, result["result"], elf_bytes=elf
+    )
     if body.capture_assistant_context:
         try:
             payload, version = await run_in_threadpool(build_snapshot, result, elf)

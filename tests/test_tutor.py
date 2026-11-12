@@ -1,79 +1,89 @@
-import copy
-import pytest
+"""BE REST -> generated gRPC contract; rule semantics are owned by TUTOR."""
+from copy import deepcopy
 from fastapi import FastAPI
+import pytest
+from app.core.config import settings
 from app.routers import tutor
-from app.schemas.tutor import ExplainItem, ExplainRequest
-from app.services.tutor import compile_explanations, simulation_explanations
-from app.services.tutor.rules import explain
-from tests.test_anonymous_simulation import post, api, compile_guest  # reuse guest API fixture
+from app.schemas.tutor import ExplainItem
+from app.services import tutor_client
+from app.services.tutor import simulation_explanations
+from tests.test_anonymous_simulation import post, api, compile_guest
 
 
-@pytest.mark.parametrize('text,category', [
-    ('', 'empty'), ('// note', 'comment'), ('#include <x.h>', 'preprocessor'),
-    ('int main() {', 'function'), ('return 0;', 'return'), ('if (x)', 'if'),
-    ('else if (x)', 'else_if'), ('else', 'else'), ('for(;;)', 'for'),
-    ('while(x)', 'while'), ('int x = 2;', 'initialization'), ('int x;', 'declaration'),
-    ('x += 1;', 'assignment'), ('f(x);', 'call'), ('}', 'scope'),
-])
-def test_c_rules(text, category):
-    assert explain(ExplainItem(kind='c', text=text)).category == category
-
-
-def test_rule_api_before_compile_and_bounded_inputs():
+def test_explain_batch_keeps_additive_fields_and_input_order():
     app = FastAPI()
     app.include_router(tutor.router)
-    status, result = post(app, '/api/v1/tutor/explain', {'items': [
-        {'kind': 'c', 'text': 'int x = 2;', 'line': 4},
-        {'kind': 'asm', 'text': 'lw a0, 0(a1)'},
-        {'kind': 'crt', 'text': 'auipc ra, 0', 'pc': '0x10000'},
-    ]})
-    assert status == 200 and result['schema_version'] == '1.0'
-    assert result['items'][0]['category'] == 'initialization'
-    assert '스택' not in result['items'][1]['summary']
-    assert result['items'][2]['kind'] == 'crt'
-    assert 'main()' not in result['items'][2]['summary']
-    for payload in ({'items': []}, {'items': [{'kind': 'c', 'text': 'x' * 4097}]},
-                    {'items': [{'kind': 'c', 'text': ''}] * 129}):
-        assert post(app, '/api/v1/tutor/explain', payload)[0] == 422
+    status, body = post(app, '/api/v1/tutor/explain', {'items': [
+        {'kind': 'c', 'text': 'return 1;'}, {'kind': 'asm', 'text': 'mv a0,a1'}]})
+    assert status == 200 and [item['kind'] for item in body['items']] == ['c', 'asm']
+    assert body['items'][1]['reads'] == ['x11']
 
 
-def test_cycle_events_coexist_and_preserve_evidence():
-    result = {'history': [{'clock': 12, 'cycle_events': {
-        'stall': {'has_stall': True, 'stall_desc': 'load-use', 'assembly': 'add x6,x5,x7'},
-        'forwarding': {'has_forwarded': True, 'forwarding_info': {'target_register': ['x5']}},
-        'control_hazard': {'has_flush': True, 'flush_reason': 'control_hazard_branch_taken',
-                           'redirect_pc': '0x10020', 'flushed_stages': ['IF', 'ID']},
-    }}, {'clock': 13, 'cycle_events': {'stall': {'has_stall': False}}}],
-    'program': {'code_mapping': {'0x10000': {'assembly': 'auipc ra, 0', 'source_line': None}}}}
-    before = copy.deepcopy(result)
-    bundle = simulation_explanations(result)
-    assert result == before
-    assert len(bundle['cycle_explanations']) == 1
-    cycle = bundle['cycle_explanations'][0]
-    assert cycle['cycle'] == 12 and cycle['history_index'] == 0
-    assert [x['type'] for x in cycle['events']] == ['stall', 'forwarding', 'flush']
-    assert cycle['events'][0]['detail'] == 'load-use'
-    assert cycle['events'][1]['evidence']['forwarding_info']['target_register'] == ['x5']
-    assert '0x10020' in cycle['events'][2]['detail']
-    assert '예측 실패' not in cycle['events'][2]['detail']
+@pytest.mark.parametrize('items', [[], [{'kind': 'c', 'text': 'x'*4097}], [{'kind': 'c', 'text': ''}]*129])
+def test_invalid_rest_inputs_are_rejected(items):
+    app = FastAPI()
+    app.include_router(tutor.router)
+    assert post(app, '/api/v1/tutor/explain', {'items': items})[0] == 422
 
 
-def test_old_or_empty_results_are_supported():
-    assert simulation_explanations({'history': [{'clock': 0}], 'program': None})['cycle_explanations'] == []
-    assert simulation_explanations({})['asm_instructions'] == []
+def test_build_and_both_simulation_modes_keep_core_envelope(api):
+    for lang in ('c', 'asm'):
+        status, build = compile_guest(api, lang=lang)
+        assert status == 201 and bool(build['tutor']['c_lines']) == (lang == 'c')
+        for mode in ('single', 'pipeline'):
+            status, result = post(api.app, '/api/v1/simulation/run', {'simulation_token': build['simulation_token'], 'mode': mode})
+            assert status == 200 and result['result']['console_output'] == 'ok'
+            assert result['tutor']['schema_version'] == '1.0'
+    assert compile_guest(api, compile_profile='native')[1]['tutor'] is None
 
 
-def test_build_rules_in_both_guest_modes(api):
-    for lang, content in [('c', 'int x = 2;'), ('asm', 'addi sp,sp,-16')]:
-        _, result = compile_guest(api, lang=lang, content=content)
-        assert result['tutor']['schema_version'] == '1.0'
-        assert bool(result['tutor']['c_lines']) == (lang == 'c')
-    _, native = compile_guest(api, compile_profile='native')
-    assert native['tutor'] is None
-
-
-def test_guest_simulation_adds_tutor_without_replacing_core_result(api):
+def test_missing_tutor_does_not_fail_compiler_engine_or_context(api, monkeypatch):
+    monkeypatch.setattr(settings, 'TUTOR_GRPC_TARGET', '')
     _, build = compile_guest(api)
-    _, result = post(api.app, '/api/v1/simulation/run', {'simulation_token': build['simulation_token']})
-    assert result['result']['console_output'] == 'ok'
-    assert result['tutor']['cycle_explanations'] == []
+    assert build['tutor'] is None
+    status, result = post(api.app, '/api/v1/simulation/run', {'simulation_token': build['simulation_token']})
+    assert status == 200 and result['tutor'] is None and result['execution_status'] == 'COMPLETED'
+    from app.services.assistant.context import build_snapshot
+    from tests.test_execution_context import response
+    payload, _ = build_snapshot(response(), b'elf')
+    assert payload['tutor']['available'] is False
+    assert payload['frames']
+
+
+def test_analysis_forwards_elf_and_preserves_input(monkeypatch):
+    captured = []
+    def invoke(method, message):
+        captured.append((method, message))
+        return {'schema_version': '1.0', 'asm_instructions': [], 'cycle_explanations': [], 'execution_steps': []}
+    monkeypatch.setattr(tutor_client, '_invoke', invoke)
+    result = {'history': []}
+    before = deepcopy(result)
+    assert simulation_explanations(result, elf_bytes=b'ELF')['schema_version'] == '1.0'
+    assert captured[0][0] == 'Analyze' and captured[0][1].elf == b'ELF'
+    assert result == before
+
+
+def test_assistant_projection_normalizes_pc_and_excludes_partial_trace_counters():
+    from app.services.assistant.context import build_snapshot
+    from tests.test_execution_context import response
+    body = response()
+    for frame in body['result']['history']:
+        frame['stage_activity']['EX']['pc'] = '0x00010ABC'
+    payload, _ = build_snapshot(body, b'elf')
+    instruction = payload['tutor']['asm_instructions'][0]
+    assert instruction['pc'] == '0x00010abc'
+    assert 'retire_count' not in instruction and 'source_file' not in instruction
+    assert 'EXCLUDED_FILE_PATH' not in str(payload)
+
+
+def test_assistant_uses_file_aware_source_line_correction_without_mutating_result():
+    from app.services.assistant.context import build_snapshot
+    from tests.test_execution_context import response
+    body = response()
+    body['tutor'] = {'source_mapping': {'basis': 'elf_dwarf'},
+                     'asm_instructions': [{'pc': '0x00010000', 'source_line': None}]}
+    before = deepcopy(body)
+    payload, _ = build_snapshot(body, b'elf')
+    assert payload['frames'][0]['stage_activity']['EX']['source_line'] is None
+    assert payload['tutor']['asm_instructions'][0]['source_line'] is None
+    assert body == before

@@ -17,6 +17,7 @@ class ExplainRequest(BaseModel):
 
 
 class RuleExplanation(BaseModel):
+    model_config = ConfigDict(extra='allow')
     kind: Literal['c', 'asm', 'crt']
     category: str
     title: str

@@ -2,7 +2,9 @@
 
 ## Scope
 
-`POST /api/v1/tutor/sample` calls the independent `archreactor.tutor.v1.Tutor/Sample` gRPC service. This is a public connectivity sample: no model calls, code execution, database access, or saved conversation. Existing `/tutor/explain` and assistant endpoints remain separate.
+`POST /api/v1/tutor/sample` calls the independent `archreactor.tutor.v1.Tutor/Sample` gRPC service. This remains a public connectivity sample: no model calls, code execution, database access, or saved conversation.
+
+The local analysis branch also connects `/tutor/explain`, compilation and execution explanations to new Explain/Compile/Analyze RPCs on the same service and port. See [the tutor integration contract](../tutor/integration.md). These changes are not deployed yet; the historical sample deployment record below does not prove analysis deployment.
 
 Request: `{"message":"Hello TUTOR"}`. Maximum 256 characters / 1024 UTF-8 bytes, nonblank. Extra fields are rejected.
 
