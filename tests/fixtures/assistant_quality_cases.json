@@ -1,0 +1,538 @@
+[
+  {
+    "id": "stack-byte-arithmetic",
+    "context": {
+      "schema_version": "1.0",
+      "reference": {
+        "execution_id": "b6a13c73-f7c3-4e5e-87b1-26f4f6bc80d4",
+        "result_version": "26f03ee3eb6d91f823a6b0b143480ab4baa60074b72fea1c18cecc580e284542",
+        "artifact_sha256": "72c5bbc8ab1b4b7f9ab0c00b4b2aa2b27a10457bfed778e90165841eddec4d0e",
+        "mode": "pipeline",
+        "cycle": 25
+      },
+      "state_phase": "after_cycle",
+      "clock_is_zero_based": true,
+      "elapsed_cycles": 26,
+      "current_pc": "0x000100e4",
+      "registers": {
+        "x0": "0x00000000",
+        "x1": "0x00010200",
+        "x2": "0x7fffefdc",
+        "x3": "0x00000000",
+        "x4": "0x00000000",
+        "x5": "0x00000000",
+        "x6": "0x00000000",
+        "x7": "0x00000000",
+        "x8": "0x7fffeffc",
+        "x9": "0x00000000",
+        "x10": "0x0001023c",
+        "x11": "0x00000000",
+        "x12": "0x00000000",
+        "x13": "0xffffffff",
+        "x14": "0x00000e10",
+        "x15": "0x0001023c",
+        "x16": "0x00000000",
+        "x17": "0x0000000a",
+        "x18": "0x00000000",
+        "x19": "0x00000000",
+        "x20": "0x00000000",
+        "x21": "0x00000000",
+        "x22": "0x00000000",
+        "x23": "0x00000000",
+        "x24": "0x00000000",
+        "x25": "0x00000000",
+        "x26": "0x00000000",
+        "x27": "0x00000000",
+        "x28": "0x00000000",
+        "x29": "0x00000000",
+        "x30": "0x00000000",
+        "x31": "0x00000000"
+      },
+      "selected_memory_words": {
+        "0x00010218": "0x61766441"
+      },
+      "memory_scope": "explicitly_selected_addresses_only",
+      "metrics_at_selected_cycle": {
+        "accumulated_instructions": 13,
+        "accumulated_stalls": 1,
+        "accumulated_forwards": 7,
+        "cpi": 2.0
+      },
+      "stage_activity": {},
+      "cycle_events": {
+        "stall": {
+          "has_stall": true,
+          "stall_reason": "load_use"
+        },
+        "forwarding": {
+          "has_forwarded": false
+        },
+        "control_hazard": {
+          "has_flush": false
+        }
+      },
+      "execution_status": "COMPLETED",
+      "tutor": {
+        "asm_instructions": [],
+        "cycle_explanations": []
+      }
+    },
+    "editor_source": {
+      "language": "c",
+      "content": "int main(void) { int sum=0; for(int i=1;i<=4;i++) sum+=i; return sum; }"
+    },
+    "decision": "ALLOW",
+    "question": "sp와 s0의 차이와 s0-20 주소를 JSON으로만 답해: difference_bytes(정수), local_address(16진수).",
+    "expected": {
+      "difference_bytes": 32,
+      "local_address": "0x7fffefe8"
+    }
+  },
+  {
+    "id": "load-use-forwarding",
+    "context": {
+      "schema_version": "1.0",
+      "reference": {
+        "execution_id": "b6a13c73-f7c3-4e5e-87b1-26f4f6bc80d4",
+        "result_version": "26f03ee3eb6d91f823a6b0b143480ab4baa60074b72fea1c18cecc580e284542",
+        "artifact_sha256": "72c5bbc8ab1b4b7f9ab0c00b4b2aa2b27a10457bfed778e90165841eddec4d0e",
+        "mode": "pipeline",
+        "cycle": 25
+      },
+      "state_phase": "after_cycle",
+      "clock_is_zero_based": true,
+      "elapsed_cycles": 26,
+      "current_pc": "0x000100e4",
+      "registers": {
+        "x0": "0x00000000",
+        "x1": "0x00010200",
+        "x2": "0x7fffefdc",
+        "x3": "0x00000000",
+        "x4": "0x00000000",
+        "x5": "0x00000000",
+        "x6": "0x00000000",
+        "x7": "0x00000000",
+        "x8": "0x7fffeffc",
+        "x9": "0x00000000",
+        "x10": "0x0001023c",
+        "x11": "0x00000000",
+        "x12": "0x00000000",
+        "x13": "0xffffffff",
+        "x14": "0x00000e10",
+        "x15": "0x0001023c",
+        "x16": "0x00000000",
+        "x17": "0x0000000a",
+        "x18": "0x00000000",
+        "x19": "0x00000000",
+        "x20": "0x00000000",
+        "x21": "0x00000000",
+        "x22": "0x00000000",
+        "x23": "0x00000000",
+        "x24": "0x00000000",
+        "x25": "0x00000000",
+        "x26": "0x00000000",
+        "x27": "0x00000000",
+        "x28": "0x00000000",
+        "x29": "0x00000000",
+        "x30": "0x00000000",
+        "x31": "0x00000000"
+      },
+      "selected_memory_words": {
+        "0x00010218": "0x61766441"
+      },
+      "memory_scope": "explicitly_selected_addresses_only",
+      "metrics_at_selected_cycle": {
+        "accumulated_instructions": 13,
+        "accumulated_stalls": 1,
+        "accumulated_forwards": 7,
+        "cpi": 2.0
+      },
+      "stage_activity": {},
+      "cycle_events": {
+        "stall": {
+          "has_stall": true,
+          "stall_reason": "load_use"
+        },
+        "forwarding": {
+          "has_forwarded": false
+        },
+        "control_hazard": {
+          "has_flush": false
+        }
+      },
+      "execution_status": "COMPLETED",
+      "tutor": {
+        "asm_instructions": [],
+        "cycle_explanations": []
+      }
+    },
+    "editor_source": {
+      "language": "c",
+      "content": "int main(void) { int sum=0; for(int i=1;i<=4;i++) sum+=i; return sum; }"
+    },
+    "decision": "ALLOW",
+    "question": "JSON으로만 답해: forwarding_can_still_require_load_use_stall(포워딩을 지원해도 load-use 스톨이 필요한 경우가 있나, boolean), address_calculation_stage(일반 5단계에서 load 주소를 계산하는 단계), guaranteed_stalls_removed(이 자료만으로 제거 가능한 스톨 수, 모르면 null).",
+    "expected": {
+      "forwarding_can_still_require_load_use_stall": true,
+      "address_calculation_stage": "EX",
+      "guaranteed_stalls_removed": null
+    }
+  },
+  {
+    "id": "draft-identity",
+    "context": {
+      "schema_version": "1.0",
+      "reference": {
+        "execution_id": "b6a13c73-f7c3-4e5e-87b1-26f4f6bc80d4",
+        "result_version": "26f03ee3eb6d91f823a6b0b143480ab4baa60074b72fea1c18cecc580e284542",
+        "artifact_sha256": "72c5bbc8ab1b4b7f9ab0c00b4b2aa2b27a10457bfed778e90165841eddec4d0e",
+        "mode": "pipeline",
+        "cycle": 25
+      },
+      "state_phase": "after_cycle",
+      "clock_is_zero_based": true,
+      "elapsed_cycles": 26,
+      "current_pc": "0x000100e4",
+      "registers": {
+        "x0": "0x00000000",
+        "x1": "0x00010200",
+        "x2": "0x7fffefdc",
+        "x3": "0x00000000",
+        "x4": "0x00000000",
+        "x5": "0x00000000",
+        "x6": "0x00000000",
+        "x7": "0x00000000",
+        "x8": "0x7fffeffc",
+        "x9": "0x00000000",
+        "x10": "0x0001023c",
+        "x11": "0x00000000",
+        "x12": "0x00000000",
+        "x13": "0xffffffff",
+        "x14": "0x00000e10",
+        "x15": "0x0001023c",
+        "x16": "0x00000000",
+        "x17": "0x0000000a",
+        "x18": "0x00000000",
+        "x19": "0x00000000",
+        "x20": "0x00000000",
+        "x21": "0x00000000",
+        "x22": "0x00000000",
+        "x23": "0x00000000",
+        "x24": "0x00000000",
+        "x25": "0x00000000",
+        "x26": "0x00000000",
+        "x27": "0x00000000",
+        "x28": "0x00000000",
+        "x29": "0x00000000",
+        "x30": "0x00000000",
+        "x31": "0x00000000"
+      },
+      "selected_memory_words": {
+        "0x00010218": "0x61766441"
+      },
+      "memory_scope": "explicitly_selected_addresses_only",
+      "metrics_at_selected_cycle": {
+        "accumulated_instructions": 13,
+        "accumulated_stalls": 1,
+        "accumulated_forwards": 7,
+        "cpi": 2.0
+      },
+      "stage_activity": {},
+      "cycle_events": {
+        "stall": {
+          "has_stall": true,
+          "stall_reason": "load_use"
+        },
+        "forwarding": {
+          "has_forwarded": false
+        },
+        "control_hazard": {
+          "has_flush": false
+        }
+      },
+      "execution_status": "COMPLETED",
+      "tutor": {
+        "asm_instructions": [],
+        "cycle_explanations": []
+      }
+    },
+    "editor_source": {
+      "language": "c",
+      "content": "int main(void) { int sum=0; for(int i=1;i<=4;i++) sum+=i; return sum; }"
+    },
+    "decision": "ALLOW",
+    "question": "첨부 코드와 실행이 같은 코드에서 나온 것인지 JSON으로만 답해: same_execution_verified(boolean), equality_from_different_hashes(C 원문 해시와 ELF 해시로 동일성 입증 가능 여부, boolean).",
+    "expected": {
+      "same_execution_verified": false,
+      "equality_from_different_hashes": false
+    }
+  },
+  {
+    "id": "selected-cpi",
+    "context": {
+      "schema_version": "1.0",
+      "reference": {
+        "execution_id": "b6a13c73-f7c3-4e5e-87b1-26f4f6bc80d4",
+        "result_version": "26f03ee3eb6d91f823a6b0b143480ab4baa60074b72fea1c18cecc580e284542",
+        "artifact_sha256": "72c5bbc8ab1b4b7f9ab0c00b4b2aa2b27a10457bfed778e90165841eddec4d0e",
+        "mode": "pipeline",
+        "cycle": 25
+      },
+      "state_phase": "after_cycle",
+      "clock_is_zero_based": true,
+      "elapsed_cycles": 26,
+      "current_pc": "0x000100e4",
+      "registers": {
+        "x0": "0x00000000",
+        "x1": "0x00010200",
+        "x2": "0x7fffefdc",
+        "x3": "0x00000000",
+        "x4": "0x00000000",
+        "x5": "0x00000000",
+        "x6": "0x00000000",
+        "x7": "0x00000000",
+        "x8": "0x7fffeffc",
+        "x9": "0x00000000",
+        "x10": "0x0001023c",
+        "x11": "0x00000000",
+        "x12": "0x00000000",
+        "x13": "0xffffffff",
+        "x14": "0x00000e10",
+        "x15": "0x0001023c",
+        "x16": "0x00000000",
+        "x17": "0x0000000a",
+        "x18": "0x00000000",
+        "x19": "0x00000000",
+        "x20": "0x00000000",
+        "x21": "0x00000000",
+        "x22": "0x00000000",
+        "x23": "0x00000000",
+        "x24": "0x00000000",
+        "x25": "0x00000000",
+        "x26": "0x00000000",
+        "x27": "0x00000000",
+        "x28": "0x00000000",
+        "x29": "0x00000000",
+        "x30": "0x00000000",
+        "x31": "0x00000000"
+      },
+      "selected_memory_words": {
+        "0x00010218": "0x61766441"
+      },
+      "memory_scope": "explicitly_selected_addresses_only",
+      "metrics_at_selected_cycle": {
+        "accumulated_instructions": 13,
+        "accumulated_stalls": 1,
+        "accumulated_forwards": 7,
+        "cpi": 2.0
+      },
+      "stage_activity": {},
+      "cycle_events": {
+        "stall": {
+          "has_stall": true,
+          "stall_reason": "load_use"
+        },
+        "forwarding": {
+          "has_forwarded": false
+        },
+        "control_hazard": {
+          "has_flush": false
+        }
+      },
+      "execution_status": "COMPLETED",
+      "tutor": {
+        "asm_instructions": [],
+        "cycle_explanations": []
+      }
+    },
+    "editor_source": {
+      "language": "c",
+      "content": "int main(void) { int sum=0; for(int i=1;i<=4;i++) sum+=i; return sum; }"
+    },
+    "decision": "ALLOW",
+    "question": "현재 선택 시점의 CPI를 JSON으로만 답해: elapsed_cycles, retired_instructions, cpi. 전체 실행 요약은 섞지 마.",
+    "expected": {
+      "elapsed_cycles": 26,
+      "retired_instructions": 13,
+      "cpi": 2.0
+    }
+  },
+  {
+    "id": "missing-history-abstention",
+    "context": {
+      "schema_version": "1.0",
+      "reference": {
+        "execution_id": "b6a13c73-f7c3-4e5e-87b1-26f4f6bc80d4",
+        "result_version": "26f03ee3eb6d91f823a6b0b143480ab4baa60074b72fea1c18cecc580e284542",
+        "artifact_sha256": "72c5bbc8ab1b4b7f9ab0c00b4b2aa2b27a10457bfed778e90165841eddec4d0e",
+        "mode": "pipeline",
+        "cycle": 25
+      },
+      "state_phase": "after_cycle",
+      "clock_is_zero_based": true,
+      "elapsed_cycles": 26,
+      "current_pc": "0x000100e4",
+      "registers": {
+        "x0": "0x00000000",
+        "x1": "0x00010200",
+        "x2": "0x7fffefdc",
+        "x3": "0x00000000",
+        "x4": "0x00000000",
+        "x5": "0x00000000",
+        "x6": "0x00000000",
+        "x7": "0x00000000",
+        "x8": "0x7fffeffc",
+        "x9": "0x00000000",
+        "x10": "0x0001023c",
+        "x11": "0x00000000",
+        "x12": "0x00000000",
+        "x13": "0xffffffff",
+        "x14": "0x00000e10",
+        "x15": "0x0001023c",
+        "x16": "0x00000000",
+        "x17": "0x0000000a",
+        "x18": "0x00000000",
+        "x19": "0x00000000",
+        "x20": "0x00000000",
+        "x21": "0x00000000",
+        "x22": "0x00000000",
+        "x23": "0x00000000",
+        "x24": "0x00000000",
+        "x25": "0x00000000",
+        "x26": "0x00000000",
+        "x27": "0x00000000",
+        "x28": "0x00000000",
+        "x29": "0x00000000",
+        "x30": "0x00000000",
+        "x31": "0x00000000"
+      },
+      "selected_memory_words": {
+        "0x00010218": "0x61766441"
+      },
+      "memory_scope": "explicitly_selected_addresses_only",
+      "metrics_at_selected_cycle": {
+        "accumulated_instructions": 13,
+        "accumulated_stalls": 1,
+        "accumulated_forwards": 7,
+        "cpi": 2.0
+      },
+      "stage_activity": {},
+      "cycle_events": {
+        "stall": {
+          "has_stall": true,
+          "stall_reason": "load_use"
+        },
+        "forwarding": {
+          "has_forwarded": false
+        },
+        "control_hazard": {
+          "has_flush": false
+        }
+      },
+      "execution_status": "COMPLETED",
+      "tutor": {
+        "asm_instructions": [],
+        "cycle_explanations": []
+      }
+    },
+    "editor_source": {
+      "language": "c",
+      "content": "int main(void) { int sum=0; for(int i=1;i<=4;i++) sum+=i; return sum; }"
+    },
+    "decision": "ALLOW",
+    "question": "지금까지 루프가 몇 번 실행됐고 i 초기화가 끝났는지 JSON으로만 답해: observed_loop_iterations, initialization_completed. 증거가 없으면 null.",
+    "expected": {
+      "observed_loop_iterations": null,
+      "initialization_completed": null
+    }
+  },
+  {
+    "id": "inconsistent-cpi",
+    "context": {
+      "schema_version": "1.0",
+      "reference": {
+        "execution_id": "b6a13c73-f7c3-4e5e-87b1-26f4f6bc80d4",
+        "result_version": "26f03ee3eb6d91f823a6b0b143480ab4baa60074b72fea1c18cecc580e284542",
+        "artifact_sha256": "72c5bbc8ab1b4b7f9ab0c00b4b2aa2b27a10457bfed778e90165841eddec4d0e",
+        "mode": "pipeline",
+        "cycle": 25
+      },
+      "state_phase": "after_cycle",
+      "clock_is_zero_based": true,
+      "elapsed_cycles": 26,
+      "current_pc": "0x000100e4",
+      "registers": {
+        "x0": "0x00000000",
+        "x1": "0x00010200",
+        "x2": "0x7fffefdc",
+        "x3": "0x00000000",
+        "x4": "0x00000000",
+        "x5": "0x00000000",
+        "x6": "0x00000000",
+        "x7": "0x00000000",
+        "x8": "0x7fffeffc",
+        "x9": "0x00000000",
+        "x10": "0x0001023c",
+        "x11": "0x00000000",
+        "x12": "0x00000000",
+        "x13": "0xffffffff",
+        "x14": "0x00000e10",
+        "x15": "0x0001023c",
+        "x16": "0x00000000",
+        "x17": "0x0000000a",
+        "x18": "0x00000000",
+        "x19": "0x00000000",
+        "x20": "0x00000000",
+        "x21": "0x00000000",
+        "x22": "0x00000000",
+        "x23": "0x00000000",
+        "x24": "0x00000000",
+        "x25": "0x00000000",
+        "x26": "0x00000000",
+        "x27": "0x00000000",
+        "x28": "0x00000000",
+        "x29": "0x00000000",
+        "x30": "0x00000000",
+        "x31": "0x00000000"
+      },
+      "selected_memory_words": {
+        "0x00010218": "0x61766441"
+      },
+      "memory_scope": "explicitly_selected_addresses_only",
+      "metrics_at_selected_cycle": {
+        "accumulated_instructions": 13,
+        "accumulated_stalls": 1,
+        "accumulated_forwards": 7,
+        "cpi": 9.0
+      },
+      "stage_activity": {},
+      "cycle_events": {
+        "stall": {
+          "has_stall": true,
+          "stall_reason": "load_use"
+        },
+        "forwarding": {
+          "has_forwarded": false
+        },
+        "control_hazard": {
+          "has_flush": false
+        }
+      },
+      "execution_status": "COMPLETED",
+      "tutor": {
+        "asm_instructions": [],
+        "cycle_explanations": []
+      }
+    },
+    "editor_source": {
+      "language": "c",
+      "content": "int main(void) { int sum=0; for(int i=1;i<=4;i++) sum+=i; return sum; }"
+    },
+    "decision": "ALLOW",
+    "question": "선택 시점 CPI 자료가 모순인지 JSON으로만 답해: inconsistent(boolean), cpi(확정 불가면 null).",
+    "expected": {
+      "inconsistent": true,
+      "cpi": null
+    }
+  }
+]
