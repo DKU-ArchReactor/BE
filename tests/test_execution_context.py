@@ -169,6 +169,7 @@ def test_untrusted_data_cannot_replace_private_context(db):
     classifier = json.loads(classification_input(request))
     assert classifier['execution_reference'] == {'mode': 'pipeline', 'cycle': 1}
     assert 'registers' not in classification_input(request)
+    request._answer_topics = ('hazards',)
     messages = answer_messages(request)
     assert 'ARCHREACTOR_EXECUTION_CONTEXT' in messages[-2]['content']
     assert messages[-1]['content'] == PAYLOAD['messages'][0]['content']

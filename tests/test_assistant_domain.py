@@ -35,7 +35,7 @@ CASES = json.loads((Path(__file__).parent / 'fixtures/assistant_domain_cases.jso
 REQUEST = ChatRequest(messages=[{'role': 'user', 'content': '스톨이 뭐야?'}])
 
 
-def completion(content='{"decision":"ALLOW"}', **kwargs):
+def completion(content='{"decision":"ALLOW","topics":["code","hazards"]}', **kwargs):
     choice = {'index': 0, 'finish_reason': 'stop',
               'message': {'role': 'assistant', 'content': content}}
     choice.update(kwargs)
@@ -78,7 +78,7 @@ def collect(subject, request=REQUEST):
 
 @pytest.mark.parametrize('case', CASES, ids=lambda c: c['id'])
 def test_decision_routes_without_answer_call_unless_allowed(case):
-    factory, requests, clients = gateway(completion(json.dumps({'decision':case['expected']})))
+    factory, requests, clients = gateway(completion(json.dumps({'decision':case['expected'], 'topics':['code'] if case['expected']=='ALLOW' else []})))
     request = ChatRequest(messages=case['messages'])
     events = collect(provider(factory), request)
     assert [e['type'] for e in events] == ['delta', 'done']
@@ -203,7 +203,7 @@ def test_classification_timeout_and_cancellation_close_client_and_release_slot(m
 @pytest.mark.parametrize('decision', list(Decision))
 def test_guarded_route_sse_quota_once(chat_app, decision):
     app, quota = chat_app
-    factory, requests, _ = gateway(completion(json.dumps({'decision':decision})))
+    factory, requests, _ = gateway(completion(json.dumps({'decision':decision, 'topics':['hazards'] if decision==Decision.ALLOW else []})))
     app.dependency_overrides[get_agent_provider] = lambda: provider(factory)
     status, body = asyncio.run(call(app))
     assert status == 200 and '"delta"' in body and '"done"' in body and '"error"' not in body
@@ -273,7 +273,7 @@ def test_missing_or_multiple_choices_fail_closed(choice_count):
 
 def test_plain_json_mode_still_requires_valid_decision(monkeypatch):
     monkeypatch.setattr(settings, 'SOLID_LLM_CLASSIFICATION_FORMAT', 'none')
-    factory, requests, _ = gateway(completion('{"decision":"SMALL_TALK"}'))
+    factory, requests, _ = gateway(completion('{"decision":"SMALL_TALK","topics":[]}'))
     assert collect(provider(factory))[-1]['type'] == 'done'
     assert 'response_format' not in requests[0] and len(requests) == 1
     factory, requests, _ = gateway(completion('ALLOW'))

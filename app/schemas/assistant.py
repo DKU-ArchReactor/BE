@@ -40,6 +40,7 @@ class ChatRequest(BaseModel):
     context: ExecutionContextReference | None = None
     editor_source: EditorSource | None = None
     _execution_context: dict | None = PrivateAttr(default=None)
+    _answer_topics: tuple[str, ...] = PrivateAttr(default=())
 
     @model_validator(mode='after')
     def validate_conversation(self):
