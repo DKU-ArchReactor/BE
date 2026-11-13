@@ -9,13 +9,16 @@ import re
 
 def cpi_check(elapsed, retired, reported):
     result = {'elapsed_cycles': elapsed, 'retired_instructions': retired,
-              'reported_cpi': reported, 'cpi': None, 'status': 'missing'}
+              'reported_cpi': reported if type(reported) in (int, float) and math.isfinite(reported) else None,
+              'cpi': None, 'status': 'missing'}
     if elapsed is None or retired is None:
         return result
     if any(type(v) is not int or v < 0 for v in (elapsed, retired)):
         return {**result, 'status': 'inconsistent'}
     if retired == 0:
         return {**result, 'status': 'undefined' if reported is None else 'inconsistent'}
+    if elapsed == 0:
+        return {**result, 'status': 'inconsistent'}
     computed = elapsed / retired
     # Accept only floating-point serialization noise, not a different CPI.
     if (type(reported) not in (int, float) or not math.isfinite(reported)

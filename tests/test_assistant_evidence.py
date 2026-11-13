@@ -69,13 +69,14 @@ def test_stack_and_memory_are_distinct_scopes():
     assert memory['selected_memory_words']==FIXTURE['context']['selected_memory_words']
 
 @pytest.mark.parametrize('elapsed,retired,reported,status,cpi', [
-    (26,13,2,'verified',2), (3,2,1.5,'verified',1.5), (26,13,9,'inconsistent',None),
+    (0,1,0,'inconsistent',None), (26,13,2,'verified',2), (3,2,1.5,'verified',1.5), (26,13,9,'inconsistent',None),
     (0,0,None,'undefined',None),(2,0,0,'inconsistent',None),(None,2,1,'missing',None),
     (2,1,None,'missing',None),(True,1,1,'inconsistent',None),(-1,1,-1,'inconsistent',None),
     (2,1,float('nan'),'inconsistent',None),(2,1,float('inf'),'inconsistent',None)])
 def test_cpi_validation(elapsed,retired,reported,status,cpi):
     result=cpi_check(elapsed,retired,reported)
     assert (result['status'],result['cpi'])==(status,cpi)
+    json.dumps(result,allow_nan=False)
 
 
 def test_selected_and_whole_scopes_and_counter_contradiction():

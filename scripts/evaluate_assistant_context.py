@@ -53,6 +53,7 @@ async def evaluate(cases):
                     events = [event async for event in GuardedProvider(classifier=Classifier()).stream(request)]
                     if record.get('decision') != 'ALLOW':
                         record['passed'] = False
+                        record['failure_kind'] = 'classification'
                         record['classification_usage'] = observation.usage.get('classification', {})
                         records.append(record)
                         continue
@@ -77,7 +78,9 @@ async def evaluate(cases):
                         if not isinstance(parsed, dict) or k not in parsed or not matches(parsed[k], v)]
                     if not record['complete']:
                         record['failure_kind'] = 'incomplete'
-                    elif record.get('format_valid') and not record['facts_match']:
+                    elif not record.get('format_valid'):
+                        record['failure_kind'] = 'format'
+                    elif not record['facts_match']:
                         record['failure_kind'] = 'facts'
             record['passed'] = (record['decision'] == case['decision'] and record.get('facts_match', True)
                                 and record.get('reference_match', True) and record.get('complete', True))
