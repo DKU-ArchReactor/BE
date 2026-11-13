@@ -56,6 +56,7 @@ def test_static_code_and_identity_do_not_receive_execution_values():
         value=execution_evidence(req)
         assert not {'registers','selected_memory_words','stage_activity','verified_metrics','execution_status'} & value.keys()
         assert value['relationship_to_editor_source']=='not_verified'
+        if topic!='identity': assert 'reference' not in value
         messages=answer_messages(req)
         assert any('ARCHREACTOR_EDITOR_SOURCE' in m['content'] for m in messages)==(topic in ['code','flow'])
 

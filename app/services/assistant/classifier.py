@@ -26,8 +26,7 @@ def classification_input(request: ChatRequest) -> str:
         data['execution_reference'] = {'mode': ref['mode'], 'cycle': ref['cycle']}
     if request.editor_source is not None:
         source = request.editor_source
-        data['editor_source'] = {'language': source.language, 'content': source.content[:4000],
-                                 'truncated': len(source.content) > 4000}
+        data['editor_source'] = {'language': source.language, 'characters': len(source.content)}
     return json.dumps(data, ensure_ascii=False)
 
 

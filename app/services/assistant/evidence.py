@@ -67,6 +67,11 @@ def execution_evidence(request):
         'observed_loop_iterations': None,
         'initialization_completed': None,
     }
+    if not topics & {'mapping', 'registers', 'memory', 'stack', 'hazards', 'cpi', 'identity'}:
+        # A static explanation has no reason to receive an execution clock/ID.
+        result.pop('reference')
+        result.pop('clock_is_zero_based')
+        result.pop('state_phase')
     tutor = context.get('tutor') or {}
     if topics & {'mapping', 'registers', 'memory', 'stack', 'hazards'}:
         result['stage_activity'] = context.get('stage_activity', {})
@@ -85,7 +90,7 @@ def execution_evidence(request):
     if 'memory' in topics:
         result['selected_memory_words'] = context.get('selected_memory_words', {})
         result['memory_scope'] = 'explicitly_selected_addresses_only'
-    if 'hazards' in topics:
+    if topics & {'hazards', 'cpi'}:
         result['cycle_events'] = context.get('cycle_events', {})
     if 'cpi' in topics:
         selected = context.get('metrics_at_selected_cycle') or {}

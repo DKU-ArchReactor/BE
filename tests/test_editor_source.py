@@ -34,11 +34,11 @@ def test_editor_source_is_current_untrusted_data_not_execution():
     assert 'ARCHREACTOR_EXECUTION_CONTEXT (data' not in messages[-2]['content']
 
 
-def test_classifier_excerpt_bounded_answer_keeps_full_source():
+def test_classifier_only_sees_metadata_answer_keeps_full_source():
     source = {'language': 'asm', 'content': '# comment\n' * 1100}
     req = ChatRequest(**QUESTION, editor_source=source)
     classified = json.loads(classification_input(req))['editor_source']
-    assert len(classified['content']) == 4000 and classified['truncated'] is True
+    assert classified == {'language':'asm','characters':len(source['content'])}
     req._answer_topics = ('code',)
     payload = json.loads(answer_messages(req)[-2]['content'].split('\n', 1)[1])
     assert payload['content'] == source['content']
@@ -63,7 +63,8 @@ def test_source_still_passes_domain_gate_and_is_not_logged(decision, caplog):
     assert len(requests) == (2 if decision == Decision.ALLOW else 1)
     data = json.loads(requests[0]['messages'][1]['content'])
     assert data['latest_question'] == QUESTION['messages'][0]['content']
-    assert data['editor_source']['content'] == sentinel
+    assert data['editor_source']=={'language':'c','characters':len(sentinel)}
+    assert sentinel not in requests[0]['messages'][1]['content']
     if decision == Decision.ALLOW:
         assert sentinel in json.loads(requests[1]['messages'][-2]['content'].split('\n',1)[1])['content']
     assert 'context' not in events[-1]
