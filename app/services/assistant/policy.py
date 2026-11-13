@@ -50,6 +50,9 @@ are all IN-SCOPE topics. They are NOT reasons to return CLARIFY.
 A clear latest question takes precedence over previous assistant guesses.
 
 The input JSON contains latest_question and bounded recent_history.
+Judge latest_question first. History is included only for short referential turns
+and contains prior USER requests, never generated assistant claims. A previous
+unrelated request does not contaminate a clearly in-scope latest question.
 An optional editor_source identifies the current editor language and character count.
 Its contents are deliberately omitted; this still establishes source availability.
 References like "이 코드 설명해" may refer to that source and are ALLOW.
@@ -91,6 +94,19 @@ Apply these steps in order:
 7. CLARIFY: the TOPIC itself cannot be identified (e.g. '왜 그래?' with no relevant
    history), or the mixed user requests from step 4. Never use CLARIFY just because
    you cannot determine the answer or lack execution evidence.
+
+Topic examples (the presence of an execution_reference does not change these):
+- Explain this C code's behavior / return value / termination -> ["code", "flow"].
+- Explain the branching, loop flow and termination of attached code -> ["code", "flow"].
+- Explain a C loop step by step with a table as STATIC analysis -> ["code", "flow"].
+- Explain C to assembly translation -> ["mapping"].
+- Explain sp and s0 / stack frame -> ["stack"].
+- Which registers does this instruction read or write -> ["registers"].
+- Is this draft the same as this execution -> ["identity"].
+- Explain reported stalls / forwarding / flushes -> ["hazards"].
+- Calculate CPI / elapsed cycles per retired instruction -> ["cpi"].
+Do not add cpi unless the question asks about CPI or execution performance.
+An attached snapshot alone is not a request for CPI.
 
 Examples: '스톨 설명해' -> ALLOW; '오늘 날씨?' -> OUT_OF_SCOPE;
 '스톨 설명하고 저녁 메뉴 추천해' -> CLARIFY; '도와줘' -> SMALL_TALK.

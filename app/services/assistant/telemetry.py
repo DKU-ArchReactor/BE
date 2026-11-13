@@ -66,3 +66,11 @@ def log_failure(request_id, stage, code):
     logger.info(json.dumps({'event': 'assistant_failure', 'requestId': request_id,
                             'stage': stage if stage in STAGES else 'admission', 'code': safe_code}))
     return safe_code
+
+
+def record_answer_validation(request_id, outcome):
+    """Metadata only: no model selection, evidence values or conversation text."""
+    if outcome not in ('validated', 'empty', 'invalid', 'incomplete'):
+        raise ValueError('unknown validation outcome')
+    logger.info(json.dumps({'event': 'assistant_answer_validation',
+                           'requestId': request_id, 'outcome': outcome}))

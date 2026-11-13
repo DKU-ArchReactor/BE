@@ -1,6 +1,7 @@
 """Fail-closed SOLID classification with a bounded, untrusted conversation window."""
 import asyncio
 import json
+import re
 
 from app.core.config import settings
 from app.schemas.assistant import ChatRequest
@@ -11,16 +12,22 @@ from app.services.assistant.telemetry import token_usage
 
 
 def classification_input(request: ChatRequest) -> str:
+    # Only short referential turns need prior user requests. Never use a prior
+    # generated answer to determine scope; explicit new topics stand on their own.
+    latest = request.messages[-1].content
+    followup = len(latest) <= 120 and bool(re.search(
+        r'그럼|그러면|그거|그건|이건|왜|다시|더\s*(?:자세|설명|짧)|짧게|요약|예시|차이|그래서|그렇|\b(?:why|then|that|it|more|shorter)\b', latest, re.I))
     history = []
     remaining = 4000
-    for message in reversed(request.messages[:-1][-6:]):
-        if remaining <= 0:
-            break
-        content = message.content[-min(1000, remaining):]
-        history.append({'role': message.role, 'content': content,
-                        'truncated': len(content) < len(message.content)})
-        remaining -= len(content)
-    data = {'recent_history': list(reversed(history)), 'latest_question': request.messages[-1].content}
+    if followup:
+        for message in reversed([m for m in request.messages[:-1] if m.role == 'user'][-4:]):
+            content = message.content[-min(1000, remaining):]
+            if not content or remaining <= 0:
+                break
+            history.append({'role': 'user', 'content': content,
+                            'truncated': len(content) < len(message.content)})
+            remaining -= len(content)
+    data = {'recent_history': list(reversed(history)), 'latest_question': latest}
     if request._execution_context is not None:
         ref = request._execution_context['reference']
         data['execution_reference'] = {'mode': ref['mode'], 'cycle': ref['cycle']}

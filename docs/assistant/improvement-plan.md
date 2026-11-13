@@ -28,3 +28,7 @@ Deployment is separate. Capture model/version, prompt commit and aggregate pass/
 ## Implementation and comparison update
 
 The four implementation steps are complete on PR #14. [Three-version live comparison](evaluations/2026-11-13-evidence-comparison.md) against the corrected common fixtures measured 6/18 → 11/18 → 17/18 factual passes and ordinary-answer means of 3,081.5 → 1,293.4 → 597.9 characters. Local regressions: 193 passed. Final prose still contains unsupported causal claims and one sequential question was incorrectly gated, so the rollout gate remains unmet. Do not equate implementation completion with release approval.
+
+## Validated execution claims update
+
+PR #14 now isolates generated history from classification and uses model-selected, server-rendered facts for execution answers. The corrected six factual cases pass 18/18; eight suggestions pass classification in both fresh and sequential conversations (16/16). Independent domain/follow-up classification passes 44/44. Additional cases pass 2/3: a missing-event question expressed with API field names is still incorrectly CLARIFY. General C explanations remain free-form and contain arithmetic/self-correction and attachment-status errors. Mapping/instruction explanations are intentionally restricted to the supported fact catalog, so correctness gains include reduced answer expressiveness. The rollout gate remains unmet; see [current evidence and limitations](evaluations/2026-11-13-validated-claims.md).

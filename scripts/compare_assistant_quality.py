@@ -35,6 +35,12 @@ def main():
     from app.core.config import settings
     from app.services.assistant.prompt import SYSTEM_PROMPT
     from app.services.assistant.policy import CLASSIFIER_PROMPT
+    try:
+        from app.services.assistant.claims import CLAIM_PROMPT, FALLBACK, fact_catalog
+    except ImportError:
+        CLAIM_PROMPT = ''
+        FALLBACK = ''
+        fact_catalog = lambda request: None
     # Same evaluator for every revision, imported against that revision's provider.
     spec = importlib.util.spec_from_file_location('quality_evaluator', REPO/'scripts/evaluate_assistant_context.py')
     evaluator = importlib.util.module_from_spec(spec)
@@ -46,6 +52,7 @@ def main():
     prose=json.loads(prose_path.read_text())
     report={'arm':args.arm,'model':settings.SOLID_LLM_MODEL,
             'answer_prompt_sha256':hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest(),
+            'claim_prompt_sha256':hashlib.sha256(CLAIM_PROMPT.encode()).hexdigest() if CLAIM_PROMPT else None,
             'classifier_prompt_sha256':hashlib.sha256(CLASSIFIER_PROMPT.encode()).hexdigest(),
             'fixture_sha256':hashlib.sha256(factual_path.read_bytes()+prose_path.read_bytes()).hexdigest(),
             'answer_max_tokens':settings.ASSISTANT_MAX_TOKENS,'records':[]}
@@ -69,8 +76,14 @@ def main():
         started=time.monotonic()
         try:
             async with asyncio.timeout(settings.ASSISTANT_TIMEOUT_SECONDS):
-                events=[e async for e in GuardedProvider(classifier=Classifier()).stream(request)]
+                events=[]
+                async for event in GuardedProvider(classifier=Classifier()).stream(request):
+                    if event['type']=='delta' and 'first_delta_seconds' not in row:
+                        row['first_delta_seconds']=round(time.monotonic()-started,3)
+                    events.append(event)
             answer=''.join(e['text'] for e in events if e['type']=='delta')
+            row['server_rendered']=fact_catalog(request) is not None
+            row['validation_fallback']=bool(FALLBACK and answer==FALLBACK)
             row.update(characters=len(answer),stop_reason=events[-1].get('stop_reason'),
                        answer_usage=events[-1].get('usage',{}),
                        reference_match=events[-1].get('context')==request._execution_context['reference'])

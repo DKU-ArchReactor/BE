@@ -104,7 +104,7 @@ def test_context_is_bounded_without_truncating_latest_question():
     assert sum(len(m['content']) for m in data['recent_history']) <= 4000
     assert len(data['recent_history']) <= 6
     assert all(m['truncated'] for m in data['recent_history'])
-    assert data['recent_history'][-1]['content'].startswith('7')
+    assert data['recent_history'] == []  # A standalone latest question needs no history.
 
 
 @pytest.mark.parametrize('content', [None, '', 'ALLOW', '```json\n{"decision":"ALLOW"}\n```',
