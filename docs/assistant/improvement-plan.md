@@ -27,4 +27,4 @@ Deployment is separate. Capture model/version, prompt commit and aggregate pass/
 
 ## Implementation and comparison update
 
-The four implementation steps are complete on PR #14. [Three-version live comparison](evaluations/2026-11-13-evidence-comparison.md) against the corrected common fixtures measured 6/18 → 11/18 → 17/18 factual passes and ordinary-answer means of 3,081.5 → 1,293.4 → 597.9 characters. Local regressions: 188 passed. Final prose still contains unsupported causal claims and one sequential question was incorrectly gated, so the rollout gate remains unmet. Do not equate implementation completion with release approval.
+The four implementation steps are complete on PR #14. [Three-version live comparison](evaluations/2026-11-13-evidence-comparison.md) against the corrected common fixtures measured 6/18 → 11/18 → 17/18 factual passes and ordinary-answer means of 3,081.5 → 1,293.4 → 597.9 characters. Local regressions: 193 passed. Final prose still contains unsupported causal claims and one sequential question was incorrectly gated, so the rollout gate remains unmet. Do not equate implementation completion with release approval.

@@ -41,6 +41,8 @@ class ChatRequest(BaseModel):
     editor_source: EditorSource | None = None
     _execution_context: dict | None = PrivateAttr(default=None)
     _answer_topics: tuple[str, ...] = PrivateAttr(default=())
+    _request_id: str | None = PrivateAttr(default=None)
+    _processing_stage: str = PrivateAttr(default="admission")
 
     @model_validator(mode='after')
     def validate_conversation(self):

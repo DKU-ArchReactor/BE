@@ -77,8 +77,12 @@ Tests and examples informed prompt revisions. This is not a held-out benchmark, 
 
 ## Validation and next decision
 
-- **188 local tests passed**: domain/SOLID transport, schema boundaries, selected execution ownership/version checks, SSE, single quota reservation, cancellation/timeouts, projection, arithmetic and evaluator behavior. Existing Pydantic configuration deprecation warning only.
+- **193 local tests passed**: domain/SOLID transport, schema boundaries, selected execution ownership/version checks, SSE, single quota reservation, cancellation/timeouts, projection, arithmetic and evaluator behavior. Existing Pydantic configuration deprecation warning only.
 - No merge, deployment, frontend modification, DB schema change or user-data mutation.
 - Rollout gate remains blocked by the final factual failure, sequential false block and unsupported prose claims. The next quality work should isolate prior assistant claims from evidence more strongly, evaluate stricter evidence/answer schemas or another available model, and validate on richer simulator cases. Merely adding more prompt sentences has not eliminated the errors.
 
 Aggregate evidence, prompt hashes, per-case outcomes and token counts: [comparison metadata](2026-11-13-evidence-comparison.json).
+
+## Latest core integration
+
+After evaluation, core advanced to `e74e58f` (PR #15 request diagnostics). The sole conflict was adjacent private fields in ChatRequest. The feature branch preserves both `_answer_topics` and `_request_id`/`_processing_stage`. All 193 combined regression tests passed. Evaluated answer/classifier prompt hashes are unchanged; the live comparison above remains attributed to `d2a7b60`, before this diagnostics-only integration. No PR merge or deployment was performed.
