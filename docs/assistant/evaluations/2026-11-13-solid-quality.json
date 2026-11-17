@@ -1,0 +1,567 @@
+{
+  "model": "local/qwen3-coder-next",
+  "prompt_commit": "297fff0c85efdbd488604fa220f77aa5a4f6732a",
+  "records": [
+    {
+      "round": 1,
+      "factual": {
+        "model": "local/qwen3-coder-next",
+        "count": 5,
+        "passed": 4,
+        "records": [
+          {
+            "id": "stack-byte-arithmetic",
+            "decision": "ALLOW",
+            "passed": true,
+            "complete": true,
+            "facts_match": true,
+            "reference_match": true
+          },
+          {
+            "id": "load-use-forwarding",
+            "decision": "ALLOW",
+            "passed": true,
+            "complete": true,
+            "facts_match": true,
+            "reference_match": true
+          },
+          {
+            "id": "draft-identity",
+            "decision": "ALLOW",
+            "passed": false,
+            "error_type": "JSONDecodeError"
+          },
+          {
+            "id": "selected-cpi",
+            "decision": "ALLOW",
+            "passed": true,
+            "complete": true,
+            "facts_match": true,
+            "reference_match": true
+          },
+          {
+            "id": "missing-history-abstention",
+            "decision": "ALLOW",
+            "passed": true,
+            "complete": true,
+            "facts_match": true,
+            "reference_match": true
+          }
+        ]
+      }
+    },
+    {
+      "round": 2,
+      "factual": {
+        "model": "local/qwen3-coder-next",
+        "count": 5,
+        "passed": 2,
+        "records": [
+          {
+            "id": "stack-byte-arithmetic",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "complete": true,
+            "facts_match": true,
+            "mismatch_fields": [],
+            "mismatch_types": {},
+            "answer_usage": {
+              "inputTokens": 3983,
+              "outputTokens": 151,
+              "totalTokens": 4134
+            },
+            "reference_match": true,
+            "passed": true,
+            "classification_usage": {
+              "inputTokens": 1154,
+              "outputTokens": 6,
+              "totalTokens": 1160
+            }
+          },
+          {
+            "id": "load-use-forwarding",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "complete": true,
+            "facts_match": true,
+            "mismatch_fields": [],
+            "mismatch_types": {},
+            "answer_usage": {
+              "inputTokens": 4030,
+              "outputTokens": 43,
+              "totalTokens": 4073
+            },
+            "reference_match": true,
+            "passed": true,
+            "classification_usage": {
+              "inputTokens": 1201,
+              "outputTokens": 6,
+              "totalTokens": 1207
+            }
+          },
+          {
+            "id": "draft-identity",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "passed": false,
+            "error_type": "JSONDecodeError",
+            "classification_usage": {
+              "inputTokens": 1167,
+              "outputTokens": 6,
+              "totalTokens": 1173
+            }
+          },
+          {
+            "id": "selected-cpi",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "passed": false,
+            "error_type": "JSONDecodeError",
+            "classification_usage": {
+              "inputTokens": 1150,
+              "outputTokens": 6,
+              "totalTokens": 1156
+            }
+          },
+          {
+            "id": "missing-history-abstention",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "complete": true,
+            "facts_match": false,
+            "mismatch_fields": [
+              "observed_loop_iterations",
+              "initialization_completed"
+            ],
+            "mismatch_types": {
+              "observed_loop_iterations": "int",
+              "initialization_completed": "bool"
+            },
+            "answer_usage": {
+              "inputTokens": 3992,
+              "outputTokens": 408,
+              "totalTokens": 4400
+            },
+            "reference_match": true,
+            "passed": false,
+            "classification_usage": {
+              "inputTokens": 1162,
+              "outputTokens": 6,
+              "totalTokens": 1168
+            }
+          }
+        ]
+      }
+    },
+    {
+      "round": 3,
+      "factual": {
+        "model": "local/qwen3-coder-next",
+        "count": 5,
+        "passed": 3,
+        "records": [
+          {
+            "id": "stack-byte-arithmetic",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "passed": false,
+            "error_type": "JSONDecodeError",
+            "classification_usage": {
+              "inputTokens": 1154,
+              "outputTokens": 6,
+              "totalTokens": 1160
+            }
+          },
+          {
+            "id": "load-use-forwarding",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "complete": true,
+            "facts_match": true,
+            "mismatch_fields": [],
+            "mismatch_types": {},
+            "answer_usage": {
+              "inputTokens": 4030,
+              "outputTokens": 43,
+              "totalTokens": 4073
+            },
+            "reference_match": true,
+            "passed": true,
+            "classification_usage": {
+              "inputTokens": 1201,
+              "outputTokens": 6,
+              "totalTokens": 1207
+            }
+          },
+          {
+            "id": "draft-identity",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "passed": false,
+            "error_type": "JSONDecodeError",
+            "classification_usage": {
+              "inputTokens": 1167,
+              "outputTokens": 6,
+              "totalTokens": 1173
+            }
+          },
+          {
+            "id": "selected-cpi",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "complete": true,
+            "facts_match": true,
+            "mismatch_fields": [],
+            "mismatch_types": {},
+            "answer_usage": {
+              "inputTokens": 3980,
+              "outputTokens": 36,
+              "totalTokens": 4016
+            },
+            "reference_match": true,
+            "passed": true,
+            "classification_usage": {
+              "inputTokens": 1150,
+              "outputTokens": 6,
+              "totalTokens": 1156
+            }
+          },
+          {
+            "id": "missing-history-abstention",
+            "expected_decision": "ALLOW",
+            "decision": "ALLOW",
+            "complete": true,
+            "facts_match": true,
+            "mismatch_fields": [],
+            "mismatch_types": {},
+            "answer_usage": {
+              "inputTokens": 3992,
+              "outputTokens": 190,
+              "totalTokens": 4182
+            },
+            "reference_match": true,
+            "passed": true,
+            "classification_usage": {
+              "inputTokens": 1162,
+              "outputTokens": 6,
+              "totalTokens": 1168
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fresh:📝 코드 설명",
+      "decision": "ALLOW",
+      "characters": 1242,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 4002,
+        "outputTokens": 776,
+        "totalTokens": 4778
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1206,
+        "outputTokens": 6,
+        "totalTokens": 1212
+      },
+      "seconds": 4.6
+    },
+    {
+      "id": "fresh:🔗 C·ASM 매핑",
+      "decision": "ALLOW",
+      "characters": 883,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3987,
+        "outputTokens": 445,
+        "totalTokens": 4432
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1191,
+        "outputTokens": 6,
+        "totalTokens": 1197
+      },
+      "seconds": 2.88
+    },
+    {
+      "id": "fresh:🗃️ 레지스터 변화",
+      "decision": "ALLOW",
+      "characters": 1188,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3982,
+        "outputTokens": 702,
+        "totalTokens": 4684
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1186,
+        "outputTokens": 6,
+        "totalTokens": 1192
+      },
+      "seconds": 4.27
+    },
+    {
+      "id": "fresh:🔀 분기·반복",
+      "decision": "ALLOW",
+      "characters": 858,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3975,
+        "outputTokens": 507,
+        "totalTokens": 4482
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1179,
+        "outputTokens": 6,
+        "totalTokens": 1185
+      },
+      "seconds": 3.22
+    },
+    {
+      "id": "fresh:💾 스택 구조",
+      "decision": "ALLOW",
+      "characters": 788,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3980,
+        "outputTokens": 464,
+        "totalTokens": 4444
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1184,
+        "outputTokens": 6,
+        "totalTokens": 1190
+      },
+      "seconds": 3.28
+    },
+    {
+      "id": "fresh:⚡ 해저드 분석",
+      "decision": "ALLOW",
+      "characters": 375,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 4000,
+        "outputTokens": 182,
+        "totalTokens": 4182
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1204,
+        "outputTokens": 6,
+        "totalTokens": 1210
+      },
+      "seconds": 1.45
+    },
+    {
+      "id": "fresh:📊 CPI 분석",
+      "decision": "ALLOW",
+      "characters": 828,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3996,
+        "outputTokens": 415,
+        "totalTokens": 4411
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1200,
+        "outputTokens": 6,
+        "totalTokens": 1206
+      },
+      "seconds": 2.84
+    },
+    {
+      "id": "fresh:🔍 코드·실행 비교",
+      "decision": "ALLOW",
+      "characters": 889,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3979,
+        "outputTokens": 472,
+        "totalTokens": 4451
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1183,
+        "outputTokens": 6,
+        "totalTokens": 1189
+      },
+      "seconds": 3.28
+    },
+    {
+      "id": "sequential:📝 코드 설명",
+      "decision": "ALLOW",
+      "characters": 798,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 4002,
+        "outputTokens": 452,
+        "totalTokens": 4454
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1206,
+        "outputTokens": 6,
+        "totalTokens": 1212
+      },
+      "seconds": 2.89
+    },
+    {
+      "id": "sequential:🔗 C·ASM 매핑",
+      "decision": "ALLOW",
+      "characters": 986,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 4537,
+        "outputTokens": 540,
+        "totalTokens": 5077
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1776,
+        "outputTokens": 6,
+        "totalTokens": 1782
+      },
+      "seconds": 3.58
+    },
+    {
+      "id": "sequential:🗃️ 레지스터 변화",
+      "decision": "ALLOW",
+      "characters": 802,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 5155,
+        "outputTokens": 470,
+        "totalTokens": 5625
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 2442,
+        "outputTokens": 6,
+        "totalTokens": 2448
+      },
+      "seconds": 3.48
+    },
+    {
+      "id": "sequential:🔀 분기·반복",
+      "decision": "ALLOW",
+      "characters": 816,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 5696,
+        "outputTokens": 460,
+        "totalTokens": 6156
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 3028,
+        "outputTokens": 6,
+        "totalTokens": 3034
+      },
+      "seconds": 3.05
+    },
+    {
+      "id": "sequential:💾 스택 구조",
+      "decision": "ALLOW",
+      "characters": 730,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 6232,
+        "outputTokens": 460,
+        "totalTokens": 6692
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 3019,
+        "outputTokens": 6,
+        "totalTokens": 3025
+      },
+      "seconds": 3.29
+    },
+    {
+      "id": "sequential:⚡ 해저드 분석",
+      "decision": "ALLOW",
+      "characters": 755,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 6788,
+        "outputTokens": 411,
+        "totalTokens": 7199
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 2944,
+        "outputTokens": 6,
+        "totalTokens": 2950
+      },
+      "seconds": 2.83
+    },
+    {
+      "id": "sequential:📊 CPI 분석",
+      "decision": "ALLOW",
+      "characters": 806,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 7291,
+        "outputTokens": 464,
+        "totalTokens": 7755
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 2890,
+        "outputTokens": 6,
+        "totalTokens": 2896
+      },
+      "seconds": 3.41
+    },
+    {
+      "id": "sequential:🔍 코드·실행 비교",
+      "decision": "CLARIFY",
+      "characters": 122,
+      "stop_reason": "end_turn",
+      "answer_usage": {},
+      "reference_match": false,
+      "classification_usage": {
+        "inputTokens": 2908,
+        "outputTokens": 8,
+        "totalTokens": 2916
+      },
+      "seconds": 0.4
+    },
+    {
+      "id": "explicit-detail",
+      "decision": "ALLOW",
+      "characters": 1132,
+      "stop_reason": "end_turn",
+      "answer_usage": {
+        "inputTokens": 3976,
+        "outputTokens": 640,
+        "totalTokens": 4616
+      },
+      "reference_match": true,
+      "classification_usage": {
+        "inputTokens": 1180,
+        "outputTokens": 6,
+        "totalTokens": 1186
+      },
+      "seconds": 3.93
+    }
+  ],
+  "date": "2026-11-13",
+  "request_count": 32,
+  "classification_calls": 32,
+  "answer_calls": 31,
+  "notes": [
+    "Only synthetic fixture data; no user conversations or credentials retained.",
+    "Round 1 is a compact transcription of the evaluation output; usage omitted. JSON parse failures in all factual rounds lack answer usage/completion because the existing evaluator records these after parsing.",
+    "Natural-language inputs use the eight FE suggestions without BRIEF_ANSWER_REQUEST. Fresh conversations and one sequential conversation. One extra explicit detailed request.",
+    "Natural-language context omits the contradictory whole_run_summary present in the original factual fixture. Otherwise the selected context and C draft are unchanged.",
+    "No production deployment, database changes, route quota verification, or browser E2E verification. This directly invokes the modified GuardedProvider with the normal classifier and SOLID provider."
+  ]
+}

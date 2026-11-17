@@ -3,13 +3,17 @@ Description: Single-instance ArchReactor Beanstalk Docker environment using a pr
 Metadata:
   AWSToolsMetrics: {AWSAgentToolkit: aws-cloudformation@3}
   com.aws.cloudformation.Context:
-    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}]
+    ref: [{at: docs/aws/beanstalk.md, has: deployment and secret lifecycle}, {at: docs/assistant/integration.md, has: SOLID gateway activation and secret reference constraints}]
 Parameters:
   SolutionStack:
     Type: String
     Default: 64bit Amazon Linux 2023 v4.13.11 running Docker
   BundleBucket: {Type: String}
   BundleKey: {Type: String}
+  ExistingApplicationVersion:
+    Type: String
+    Default: ''
+    Description: Current Beanstalk version for configuration-only updates; refresh from DescribeEnvironments before every update
   VpcId: {Type: 'AWS::EC2::VPC::Id'}
   PublicSubnetId: {Type: 'AWS::EC2::Subnet::Id'}
   AppSecurityGroupId: {Type: 'AWS::EC2::SecurityGroup::Id'}
@@ -18,6 +22,20 @@ Parameters:
   DatabaseUrlSecretArn: {Type: String}
   JwtSecretArn: {Type: String}
   ArtifactBucket: {Type: String}
+  AssistantEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable chat only after SOLID credentials, live gateway checks and database migration are ready
+  SolidLlmApiKeySecretArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:secretsmanager:ap-northeast-2:242925688392:secret:[A-Za-z0-9/_+=.@-]+$'
+    Description: Existing Seoul secret ARN containing a top-level api_key field; never pass the key value
+  TutorGrpcTarget:
+    Type: String
+    Default: ''
+    Description: Private TUTOR gRPC endpoint; empty disables the sample route upstream
   CoreGrpcTarget:
     Type: String
     Default: ''
@@ -36,6 +54,9 @@ Parameters:
     Default: 'false'
     AllowedValues: ['true', 'false']
     Description: Redirect HTTP API paths only after CloudFront uses HTTPS to the origin
+Conditions:
+  HasExistingApplicationVersion: !Not [!Equals [!Ref ExistingApplicationVersion, '']]
+  HasSolidLlmSecret: !Not [!Equals [!Ref SolidLlmApiKeySecretArn, '']]
 Resources:
   Application:
     Type: AWS::ElasticBeanstalk::Application
@@ -50,12 +71,17 @@ Resources:
       SourceBundle: {S3Bucket: !Ref BundleBucket, S3Key: !Ref BundleKey}
   Environment:
     Type: AWS::ElasticBeanstalk::Environment
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: BE remains the public REST entry point and calls TUTOR through private gRPC
+        must: [Preserve the live application version unless intentionally deploying a new one, Keep existing CORE and assistant configuration]
     Properties:
       ApplicationName: !Ref Application
       EnvironmentName: archreactor-core
       CNAMEPrefix: !Sub 'archreactor-core-${AWS::AccountId}'
       SolutionStackName: !Ref SolutionStack
-      VersionLabel: !Ref Version
+      # CI deploys app versions independently; preserve the live version on config updates.
+      VersionLabel: !If [HasExistingApplicationVersion, !Ref ExistingApplicationVersion, !Ref Version]
       Tier: {Name: WebServer, Type: Standard}
       OptionSettings:
         - {Namespace: 'aws:elasticbeanstalk:environment', OptionName: EnvironmentType, Value: SingleInstance}
@@ -77,17 +103,29 @@ Resources:
         - {Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: DeleteOnTerminate, Value: 'false'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: APP_NAME, Value: ArchReactor}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: DEBUG, Value: 'false'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: TUTOR_GRPC_TARGET, Value: !Ref TutorGrpcTarget}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: TUTOR_GRPC_TIMEOUT_SECONDS, Value: '5'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TARGET, Value: !Ref CoreGrpcTarget}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORE_GRPC_TIMEOUT_SECONDS, Value: '12'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_REGION, Value: !Ref 'AWS::Region'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_ENABLED, Value: !Ref AssistantEnabled}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_PROVIDER, Value: solid_llm}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SOLID_LLM_BASE_URL, Value: 'https://dku-chat.kloud.zone/llm/v1'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: SOLID_LLM_MODEL, Value: 'local/qwen3-coder-next'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ASSISTANT_MAX_TOKENS, Value: '2048'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: AWS_S3_BUCKET, Value: !Ref ArtifactBucket}
-        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173","http://archreactor.s3-website-us-east-1.amazonaws.com"]'}
+        - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CORS_ORIGINS, Value: '["http://localhost:5173","http://archreactor.s3-website-us-east-1.amazonaws.com","http://archreactor-dev.s3-website-us-east-1.amazonaws.com"]'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: S3_PRESIGN_EXPIRES_SECONDS, Value: '300'}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ORIGIN_TLS_HOST, Value: !Ref OriginTlsHost}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: PUBLIC_HTTPS_HOST, Value: !Ref PublicHttpsHost}
         - {Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: ORIGIN_HTTPS_ONLY, Value: !Ref OriginHttpsOnly}
         - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: DATABASE_URL, Value: !Ref DatabaseUrlSecretArn}
         - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: JWT_SECRET_KEY, Value: !Ref JwtSecretArn}
+        # Platform resolves api_key at boot; no secret value enters the template.
+        - !If
+          - HasSolidLlmSecret
+          - {Namespace: 'aws:elasticbeanstalk:application:environmentsecrets', OptionName: SOLID_LLM_API_KEY, Value: !Sub '${SolidLlmApiKeySecretArn}:api_key'}
+          - !Ref AWS::NoValue
       Tags: [{Key: Project, Value: ArchReactor}, {Key: Environment, Value: core}]
 Outputs:
   Endpoint: {Description: Backend HTTP endpoint, Value: !GetAtt Environment.EndpointURL}

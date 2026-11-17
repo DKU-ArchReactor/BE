@@ -82,3 +82,24 @@ def test_mapping_one_to_many_and_startup_excluded():
 def test_invalid_elf_rejected_without_tool(data):
     with pytest.raises(InspectionError):
         inspect_elf(data)
+
+
+def test_compile_keeps_single_pass_dwarf4_and_nonfatal_inspection(monkeypatch):
+    import subprocess
+    from pathlib import Path
+    from app.services import build_service
+    from app.services.binary import inspect as inspector
+    calls = []
+    def compile_command(command):
+        calls.append(command)
+        Path(command[command.index('-o') + 1]).write_bytes(b'elf')
+        return subprocess.CompletedProcess(command, 0, 'compiler stdout', 'compiler warning')
+    def unavailable(binary):
+        raise InspectionError('inspection unavailable')
+    monkeypatch.setattr(build_service, '_run', compile_command)
+    monkeypatch.setattr(inspector, 'inspect_elf', unavailable)
+    result = build_service.compile_source('int main(){return 0;}', 'c', '-O2', 'rv32im')
+    assert len(calls) == 1 and '-S' not in calls[0] and '-gdwarf-4' in calls[0]
+    assert result.status == BuildStatus.success and result.binary == b'elf'
+    assert result.stdout == 'compiler stdout' and result.stderr == 'compiler warning'
+    assert result.analysis is None and result.analysis_error == 'inspection unavailable'

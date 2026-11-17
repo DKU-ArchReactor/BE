@@ -59,7 +59,8 @@ def test_concurrent_startup_and_repeat_preserve_data(isolated_database):
     with engine.begin() as connection:
         assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "f281a64b209e"
         assert inspect(connection).has_table('assistant_usage')
-        assert {'stdout', 'stderr'} <= {column['name'] for column in inspect(connection).get_columns('builds')}
+        assert inspect(connection).has_table('assistant_executions')
+        assert {'stdout', 'stderr'} <= {c['name'] for c in inspect(connection).get_columns('builds')}
         connection.execute(text(
             "INSERT INTO users (user_id, email, password_hash, name) "
             "VALUES ('test', 'test@example.com', 'unused', 'test')"
@@ -92,7 +93,7 @@ def test_assistant_quota_is_atomic_under_concurrent_requests(isolated_database, 
     from datetime import datetime, timezone
     from fastapi import HTTPException
     from sqlalchemy.orm import Session
-    from app.services.tutor.usage import reserve_request
+    from app.services.assistant.usage import reserve_request
 
     url, engine = isolated_database
     monkeypatch.setattr(migrate.settings, 'DATABASE_URL', url)
@@ -115,3 +116,31 @@ def test_assistant_quota_is_atomic_under_concurrent_requests(isolated_database, 
         assert sum(pool.map(attempt, range(20))) == 5
     with engine.connect() as connection:
         assert connection.scalar(text('SELECT request_count FROM assistant_usage')) == 5
+
+
+def test_context_retention_serializes_across_workers(isolated_database, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime, timezone
+    from sqlalchemy.orm import Session
+    from app.core.config import settings
+    from app.core.database import Base
+    import app.models
+    from app.models.user import User
+    from app.models.assistant_execution import AssistantExecution
+    from app.services.assistant.context import build_snapshot, store_snapshot
+    from tests.test_execution_context import response
+    from sqlalchemy import select, func
+    _, engine = isolated_database
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(settings, 'ASSISTANT_CONTEXT_MAX_SNAPSHOTS', 2)
+    with Session(engine) as db:
+        db.add(User(user_id='owner', email='owner@example.invalid', password_hash='unused', name='owner'))
+        db.commit()
+    def insert(_):
+        payload, version = build_snapshot(response(), b'elf')
+        with Session(engine) as db:
+            store_snapshot(db, 'owner', payload, version, datetime.now(timezone.utc))
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(insert, range(8)))
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(AssistantExecution)) == 2

@@ -4,9 +4,9 @@
 
 Simulation trace storage in S3 is deferred. Existing assembly/ELF artifact storage and simulation JSON responses remain unchanged. No deployment was performed.
 
-Implemented locally: owned build logs, static ELF disassembly and debug line mapping, bounded compiler execution, SOLID-compatible SSE transport adapter, and optional server-verified execution context for chat.
+Implemented locally: owned build logs, static ELF disassembly and debug line mapping, bounded compiler execution, integration with the existing core SOLID provider and server-owned execution snapshots.
 
-Pending: SOLID authentication startup wiring and a live response, actual RISC-V toolchain validation on Linux, and a separate compiler security boundary. Resource limits do not constitute a security sandbox. The current API and compiler still share a container/user.
+Pending: live SOLID/CORE integration verification, actual RISC-V toolchain validation on Linux, and a separate compiler security boundary. Resource limits do not constitute a security sandbox. The current API and compiler still share a container/user.
 
 ## Responsibilities
 
@@ -48,51 +48,25 @@ Apply Alembic revision `f281a64b209e` before running the new saved-build code. I
 
 ## Chat and execution context
 
-Existing text-only `POST /api/v1/assistant/chat` requests remain supported. An optional execution reference can be added:
+The latest `core` assistant implementation is authoritative. This PR does not replace its SOLID provider, domain checks, request diagnostics, editor-source support, or immutable execution snapshots.
+
+For logged-in saved-build runs, FE sends `capture_assistant_context: true` to `/api/v1/simulation/run`. It preserves the returned `assistant_context` descriptor alongside that exact mode's result. Chat sends `context` (not the retired `execution` field):
 
 ```json
-{
-  "messages":[{"role":"user","content":"이 사이클에서 왜 스톨이 발생했나요?"}],
-  "execution":{
-    "build_id":"<saved-build-UUID>",
-    "mode":"pipeline",
-    "max_cycles":2000,
-    "history_index":17
-  }
-}
+{"messages":[{"role":"user","content":"Explain this cycle"}],"context":{"execution_id":"<UUID>","result_version":"<64 hex chars>","artifact_sha256":"<64 hex chars>","mode":"pipeline","cycle":0,"memory_addresses":[]}}
 ```
 
-This requires a logged-in owner and a saved successful build. It does not accept browser-provided trace objects or arbitrary artifact URLs. BE reads the owned ELF, reruns CORE, then supplies the summary and selected cycle to the model. `history_index` is zero-based and is not the CORE clock value.
+`cycle` is the zero-based CORE history index; single-mode synthetic step zero has no context. This references the original stored execution, not a rerun. FE checks descriptor availability, mode, selected range and expiration. BE remains authoritative for ownership, expiry and version checks. Changing source, build, mode, execution ID or cycle cancels active chat and excludes older-context dialogue.
 
-**This is a rerun, not retrieval of the original displayed execution.** FE should label it accordingly. A CORE version change can change the trace. For exact original-run analysis, server-side execution retention is a separate future decision. Guest execution references are not supported in chat yet; guests still receive rule-based explanations from simulation responses.
-
-A new SSE event precedes text when execution context is used:
-
-```json
-{"type":"context","kind":"server_rerun_not_original_execution","build_id":"...","execution_id":"...","core_version":"...","mode":"pipeline","history_index":17}
-```
-
-Continue handling `delta`, `done`, `error` and keepalive comments. Cancel the old request when the build/selection changes and ignore responses from superseded requests. Context exceeding 7,000 characters is rejected with 413; invalid selection or combined conversation limits produce 422. Context requests count against the existing allowance even if later validation or CORE fails.
-
-## SOLID provider wiring
-
-Configured endpoint: `https://dku-chat.kloud.zone/llm/v1/chat/completions`; model: `local/qwen3-coder-next`. `ASSISTANT_PROVIDER=solid` selects the adapter. `ASSISTANT_ENABLED` remains false by default.
-
-The adapter accepts an application-owned authenticated `httpx.AsyncClient` through `HttpxTransport`, registered by `configure_transport` during application startup. The application's lifespan must close that client. No browser-supplied key or URL is accepted. Until this startup wiring exists, the configured provider is absent and chat returns 503.
-
-Authentication wiring is intentionally pending: repository AGENTS.md requires loading `aws-secrets-manager` before credential work; that skill/retrieve tool is unavailable in the current environment. No keys were read, stored or requested. Complete the approved secret-resolution setup before activation; do not hardcode credentials into the startup code or frontend.
-
-SSE compatibility was tested against mocked OpenAI-compatible frames. Actual server content type, terminal `[DONE]`, model availability and authentication still need a live test. Redirects are rejected and upstream error bodies are not forwarded to clients.
+The existing core SOLID configuration and application lifecycle are preserved. Actual authenticated SOLID responses and full FE/CORE integration remain to be tested. No secrets or deployment settings were changed during conflict resolution.
 
 ## Local verification checklist
 
-1. Migrate only the local test DB and start BE with CORE configured.
-2. Compile C at `-O0` and `-O2`, and ASM. Inspect analysis failures separately from compile failures. The machine must provide RISC-V gcc and objdump; Linux also requires prlimit.
-3. Keep CORE mappings after simulation. Use static analysis only for pre-run preview.
-4. Check new/historical build logs and reject another user's build.
-5. Check syntax-error logs, invalid ELF, unmapped lines and expired guest simulation behavior.
-6. Enable the authenticated SOLID transport after approved setup. Verify live text-only streaming, cancel, error and rate-limit paths.
-7. Test saved-build context chat, wrong ownership and out-of-range history index. Confirm the UI labels the response as a rerun and discards stale answers.
+1. Apply migrations to a disposable database: the new build-stream revision follows `f821a73d9001` (execution snapshots). Both tables and stream columns must exist.
+2. Use RISC-V GCC and objdump on Linux; retain core's single ELF compilation pass and `-gdwarf-4`. Inspect C at -O0/-O2 and ASM. Analysis failure is nonfatal.
+3. Verify static preview before execution and CORE mapping priority afterward.
+4. Verify separate/legacy logs and ownership denial.
+5. Exercise saved-file compile, both simulation modes and snapshot-context chat against real services; verify expiry/mismatch errors and cancellation.
 
 ## Compiler limits and remaining isolation
 
@@ -101,14 +75,10 @@ Compiler subprocesses now receive a minimal environment, have bounded captured o
 A dedicated compiler worker with no application credentials, no network access and a read-only filesystem remains a required architecture follow-up for stronger isolation. Do not expose a Docker daemon socket to the public API container to simulate this separation.
 
 
-## Frontend implementation (2026-11-17)
+## Frontend implementation
 
-The local frontend at `dist/FE` now displays the compile `analysis` before simulation completes, preserves CORE mapping priority, and shows inspection warnings separately from compile failures. The build status bar exposes inline logs and can reload saved-build logs with separate stdout/stderr or legacy combined output.
+The companion FE PR displays build status, inline/saved logs and static analysis before simulation completes. CORE runtime mappings take precedence. Unchanged saved C files compile with `file_id`; editing detaches that reference until the file is saved again.
 
-Compiling an unchanged saved C file uses `file_id`, producing an owned build eligible for context chat. Editing detaches that saved-file reference; save again before compiling if context chat is needed. Unsaved C and direct ASM compilation retain the existing guest/direct-input flow.
+The execution-context checkbox uses the stored snapshot descriptor returned by the corresponding simulation result. UI copy identifies it as stored execution analysis. Missing, expired or mismatched descriptors fall back to text-only questions. Backend context errors are shown to the user.
 
-The assistant popup offers an execution-context checkbox only when a saved build has an actual selected history item. Single-mode step zero is synthetic and cannot be selected for AI context; later single steps map to `currentCycle - 1`. Responses are labelled as rerun analysis. Code, build, mode or selection changes cancel active chat and exclude earlier-context messages from subsequent requests. SOLID `stop` is treated as successful completion alongside Bedrock `end_turn`.
-
-Verification: TypeScript/Vite production build, seven SSE/request-contract tests, and browser inspection of pre-execution mapping, logs and guest AI guidance against a temporary mock API. Real CORE/SOLID integration remains pending. The temporary mock was not deployed and is not a replacement for the real backend.
-
-`dist/FE` is ignored by the backend repository. `patches/backend-integration-frontend.patch` is a cumulative patch against the local FE repository HEAD, including the prior uncommitted tutor/assistant work and this integration, plus test files. Apply it only to a matching clean FE base; do not apply it again to the already edited local checkout.
+Frontend source is maintained in the separate FE repository/PR; the old local cumulative patch is not the integration source of truth.

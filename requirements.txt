@@ -13,4 +13,7 @@ boto3[crt]==1.43.126
 gunicorn==23.0.0
 grpcio==1.76.0
 protobuf==6.33.5
-httpx==0.28.1
+pyelftools>=0.32
+
+openai==3.49.0
+httpx2==2.16.0

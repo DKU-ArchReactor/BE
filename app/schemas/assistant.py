@@ -1,6 +1,8 @@
-import uuid
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
+
+
+from app.schemas.execution_context import ExecutionContextReference
 
 
 class ChatMessage(BaseModel):
@@ -16,19 +18,31 @@ class ChatMessage(BaseModel):
         return value
 
 
-class ExecutionReference(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    build_id: uuid.UUID
-    mode: Literal['single', 'pipeline'] = 'pipeline'
-    max_cycles: int = Field(default=2000, ge=1, le=2000)
-    history_index: int = Field(ge=0, le=1999)
+class EditorSource(BaseModel):
+    """Untrusted current editor text, captured for this question only."""
+    model_config = ConfigDict(extra='forbid', strict=True)
+    language: Literal['c', 'asm']
+    content: str = Field(min_length=1, max_length=12000)
+
+    @field_validator('content')
+    @classmethod
+    def nonblank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError('Editor source must not be blank')
+        if len(value.encode('utf-8')) > 48000:
+            raise ValueError('Editor source exceeds byte limit')
+        return value
 
 
 class ChatRequest(BaseModel):
-    _context_metadata: dict | None = PrivateAttr(default=None)
     model_config = ConfigDict(extra='forbid')
-    execution: ExecutionReference | None = None
     messages: list[ChatMessage] = Field(min_length=1, max_length=20)
+    context: ExecutionContextReference | None = None
+    editor_source: EditorSource | None = None
+    _execution_context: dict | None = PrivateAttr(default=None)
+    _answer_topics: tuple[str, ...] = PrivateAttr(default=())
+    _request_id: str | None = PrivateAttr(default=None)
+    _processing_stage: str = PrivateAttr(default="admission")
 
     @model_validator(mode='after')
     def validate_conversation(self):

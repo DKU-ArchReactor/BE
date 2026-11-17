@@ -2,6 +2,12 @@
 
 2026-10-26, Blank Canvas `242925688392` / `ap-northeast-2`.
 
+2026-11-05 확인: 기존 운영 API에서 `single`/`pipeline`이 모두 동작하고 결과가
+기준 엔진과 정확히 일치함을 재확인했다. 별도 어댑터를 추가한 CORE PR #5는
+중복으로 닫았다. 기존 서버를 유지하면서 CORE 엔진을 갱신하는 방향은
+[API 가이드](../api/simulation.md)를 따른다. 아래 `dist/CORE` 소스는 현재
+작업 공간에서 확보하지 못했으며, 새 엔진의 운영 배포는 수행하지 않았다.
+
 ## 저장소와 배포 단위
 
 - BE: `DKU-ArchReactor/BE`, 현재 작업 폴더. 기존 `archreactor-core` Beanstalk을 유지한다.

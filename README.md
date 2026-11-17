@@ -1,5 +1,12 @@
 # ArchReactor: An Educational RISC-V Architecture Simulator for Computer Engineering Freshmen
 
+## Simulation API
+
+The existing `/api/v1/simulation/run` selects the single-cycle or pipeline CORE
+engine with `mode`. Request/response models, local gRPC setup, error mapping,
+and integration-test instructions are documented in
+[the simulation API guide](docs/api/simulation.md).
+
 ## Backend deployment
 
 `core` 브랜치의 AWS Elastic Beanstalk 배포와 새 계정 설정은

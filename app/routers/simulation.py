@@ -1,12 +1,11 @@
 import uuid
 import json
 import time
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
@@ -16,23 +15,12 @@ from app.core.simulation_token import anonymous_binary_key
 from app.core.storage import download_bytes
 from app.models.build import Build, BuildStatus
 from app.models.user import User
+from app.schemas.simulation import SimulationRequest, SimulationResponse
 from app.services.simulation_service import MAX_ELF, run_simulation
 from app.services.tutor import simulation_explanations
+from app.services.assistant.context import build_snapshot, store_snapshot
 
 router = APIRouter(prefix='/api/v1/simulation', tags=['simulation'])
-
-
-class SimulationRequest(BaseModel):
-    build_id: uuid.UUID | None = None
-    simulation_token: str | None = Field(default=None, min_length=1, max_length=2048)
-    mode: Literal['single', 'pipeline'] = 'pipeline'
-    max_cycles: int = Field(default=2000, ge=1, le=2000)
-
-    @model_validator(mode='after')
-    def check_input_mode(self):
-        if (self.build_id is None) == (self.simulation_token is None):
-            raise ValueError('Specify exactly one of build_id or simulation_token')
-        return self
 
 
 def owned_binary(db, user, build_id):
@@ -46,12 +34,16 @@ def owned_binary(db, user, build_id):
     return build.binary_key
 
 
-@router.post('/run', description=(
+@router.post('/run', response_model=SimulationResponse, summary='시뮬레이션 실행', description=(
     '로그인 사용자는 build_id, 비로그인 체험은 빌드 응답의 simulation_token으로 실행한다. '
-    '두 필드 중 하나만 지정한다. 만료된 토큰은 410을 반환하며 재컴파일해야 한다.'
+    '두 필드 중 하나만 지정한다. 만료된 토큰은 410을 반환하며 재컴파일해야 한다. '
+    'single은 명령어 하나를 한 클록에 완료하고 pipeline은 5단계 파이프라인으로 실행한다. '
+    'COMPLETED, CYCLE_LIMIT, SIMULATION_ERROR는 execution_status로 구분한다.'
 ))
 async def simulate(body: SimulationRequest, request: Request,
                    db: Session = Depends(get_db), user: User | None = Depends(get_current_user_optional)):
+    if body.capture_assistant_context and user is None:
+        raise HTTPException(401, 'Authentication required to capture assistant context')
     handler_start = time.perf_counter()
     timings = {}
     lookup_start = time.perf_counter()
@@ -70,9 +62,18 @@ async def simulate(body: SimulationRequest, request: Request,
     except ValueError:
         raise HTTPException(413, 'ELF exceeds 256 KiB') from None
     result = await run_simulation(elf, body.mode, body.max_cycles, request.is_disconnected, timings=timings)
-    tutor_start = time.perf_counter()
-    result["tutor"] = simulation_explanations(result["result"])
-    timings["be-tutor"] = (time.perf_counter() - tutor_start) * 1000
+    result["tutor"] = await run_in_threadpool(
+        simulation_explanations, result["result"], elf_bytes=elf
+    )
+    if body.capture_assistant_context:
+        try:
+            payload, version = await run_in_threadpool(build_snapshot, result, elf)
+            result['assistant_context'] = await run_in_threadpool(store_snapshot, db, user.user_id, payload, version)
+        except (ValueError, KeyError, TypeError):
+            result['assistant_context'] = {'available': False, 'code': 'CONTEXT_UNSUPPORTED_RESULT'}
+        except SQLAlchemyError:
+            await run_in_threadpool(db.rollback)
+            result['assistant_context'] = {'available': False, 'code': 'CONTEXT_STORAGE_UNAVAILABLE'}
     prepare_start = time.perf_counter()
     result = jsonable_encoder(result)
     timings['be-json-prepare'] = (time.perf_counter() - prepare_start) * 1000

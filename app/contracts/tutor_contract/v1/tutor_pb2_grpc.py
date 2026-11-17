@@ -26,8 +26,7 @@ if _version_not_supported:
 
 
 class TutorStub(object):
-    """Connectivity sample only. Real tutoring will use separate RPCs.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -40,13 +39,45 @@ class TutorStub(object):
                 request_serializer=tutor__contract_dot_v1_dot_tutor__pb2.SampleRequest.SerializeToString,
                 response_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.SampleResponse.FromString,
                 _registered_method=True)
+        self.Explain = channel.unary_unary(
+                '/archreactor.tutor.v1.Tutor/Explain',
+                request_serializer=tutor__contract_dot_v1_dot_tutor__pb2.ExplainRequest.SerializeToString,
+                response_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.FromString,
+                _registered_method=True)
+        self.Compile = channel.unary_unary(
+                '/archreactor.tutor.v1.Tutor/Compile',
+                request_serializer=tutor__contract_dot_v1_dot_tutor__pb2.CompileRequest.SerializeToString,
+                response_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.FromString,
+                _registered_method=True)
+        self.Analyze = channel.unary_unary(
+                '/archreactor.tutor.v1.Tutor/Analyze',
+                request_serializer=tutor__contract_dot_v1_dot_tutor__pb2.AnalyzeRequest.SerializeToString,
+                response_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.FromString,
+                _registered_method=True)
 
 
 class TutorServicer(object):
-    """Connectivity sample only. Real tutoring will use separate RPCs.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def Sample(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Explain(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Compile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Analyze(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -60,6 +91,21 @@ def add_TutorServicer_to_server(servicer, server):
                     request_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.SampleRequest.FromString,
                     response_serializer=tutor__contract_dot_v1_dot_tutor__pb2.SampleResponse.SerializeToString,
             ),
+            'Explain': grpc.unary_unary_rpc_method_handler(
+                    servicer.Explain,
+                    request_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.ExplainRequest.FromString,
+                    response_serializer=tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.SerializeToString,
+            ),
+            'Compile': grpc.unary_unary_rpc_method_handler(
+                    servicer.Compile,
+                    request_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.CompileRequest.FromString,
+                    response_serializer=tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.SerializeToString,
+            ),
+            'Analyze': grpc.unary_unary_rpc_method_handler(
+                    servicer.Analyze,
+                    request_deserializer=tutor__contract_dot_v1_dot_tutor__pb2.AnalyzeRequest.FromString,
+                    response_serializer=tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'archreactor.tutor.v1.Tutor', rpc_method_handlers)
@@ -69,8 +115,7 @@ def add_TutorServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class Tutor(object):
-    """Connectivity sample only. Real tutoring will use separate RPCs.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def Sample(request,
@@ -89,6 +134,87 @@ class Tutor(object):
             '/archreactor.tutor.v1.Tutor/Sample',
             tutor__contract_dot_v1_dot_tutor__pb2.SampleRequest.SerializeToString,
             tutor__contract_dot_v1_dot_tutor__pb2.SampleResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Explain(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/archreactor.tutor.v1.Tutor/Explain',
+            tutor__contract_dot_v1_dot_tutor__pb2.ExplainRequest.SerializeToString,
+            tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Compile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/archreactor.tutor.v1.Tutor/Compile',
+            tutor__contract_dot_v1_dot_tutor__pb2.CompileRequest.SerializeToString,
+            tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Analyze(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/archreactor.tutor.v1.Tutor/Analyze',
+            tutor__contract_dot_v1_dot_tutor__pb2.AnalyzeRequest.SerializeToString,
+            tutor__contract_dot_v1_dot_tutor__pb2.TutorResponse.FromString,
             options,
             channel_credentials,
             insecure,

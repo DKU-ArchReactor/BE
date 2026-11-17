@@ -53,15 +53,20 @@ def test_rv32im_elf():
 
 
 class FakeCore(rpc.SimulatorServicer):
-    def __init__(self, code=None, schema='1.0', metadata=()):
+    def __init__(self, code=None, schema='1.0', metadata=(), result_mode=None, result_status='halted', model=None,
+                 total_cycles=0, wire_status=pb.COMPLETED):
         self.code, self.schema, self.metadata = code, schema, metadata
+        self.result_mode, self.result_status, self.model = result_mode, result_status, model
+        self.total_cycles, self.wire_status = total_cycles, wire_status
     def RunSimulation(self, request, context):
         if self.code:
             context.abort(self.code, 'test')
         context.set_trailing_metadata(self.metadata)
-        return pb.RunSimulationResponse(request_id=request.request_id, execution_id='test', status=pb.COMPLETED,
+        return pb.RunSimulationResponse(request_id=request.request_id, execution_id='test', status=self.wire_status,
             core_version='future-compatible-core', result_schema_version=self.schema,
-            result_json=json.dumps({'schema_version':self.schema, 'summary':{}, 'history':[], 'console_output':'ok', 'new_field':42}).encode())
+            result_json=json.dumps({'schema_version':self.schema, 'summary':{'total_cycles': self.total_cycles}, 'history':[], 'console_output':'ok', 'new_field':42,
+                'status': self.result_status, 'simulator': {'mode': self.result_mode or ('single' if request.mode == pb.SINGLE else 'pipeline'),
+                    'max_cycles': request.max_cycles, 'pipeline_model': self.model or ('single-cycle' if request.mode == pb.SINGLE else '5-stage-in-order')}}).encode())
 
 
 @pytest.mark.parametrize('code,http', [(None,None), (grpc.StatusCode.UNAVAILABLE,503),
@@ -82,6 +87,28 @@ def test_client_mapping(monkeypatch, code, http):
             response = asyncio.run(client.run_simulation(b'elf', 'pipeline', 2))
             assert response['core_version'] == 'future-compatible-core'
             assert response['result']['new_field'] == 42
+    finally:
+        server.stop(0).wait()
+
+
+@pytest.mark.parametrize('mode,options', [
+    ('pipeline', {'result_mode': 'single'}),
+    ('pipeline', {'result_status': 'error'}),
+    ('single', {'model': '5-stage-in-order'}),
+    ('pipeline', {'model': 'single-cycle'}),
+    ('pipeline', {'total_cycles': 3}),
+    ('pipeline', {'wire_status': pb.EXECUTION_STATUS_UNSPECIFIED}),
+])
+def test_client_rejects_inconsistent_core_results(monkeypatch, mode, options):
+    server = grpc.server(ThreadPoolExecutor(max_workers=2))
+    rpc.add_SimulatorServicer_to_server(FakeCore(**options), server)
+    port = server.add_insecure_port('127.0.0.1:0')
+    server.start()
+    monkeypatch.setattr(client.settings, 'CORE_GRPC_TARGET', f'127.0.0.1:{port}')
+    try:
+        with pytest.raises(HTTPException) as error:
+            asyncio.run(client.run_simulation(b'elf', mode, 2))
+        assert error.value.status_code == 502
     finally:
         server.stop(0).wait()
 

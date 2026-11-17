@@ -49,7 +49,7 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
     compiler = os.environ.get("RISCV_CC", "riscv64-unknown-elf-gcc") if compile_profile == "rv32im" else "gcc"
     profile_flags = (["-g", "-march=rv32im", "-mabi=ilp32", "-O0", "-ffreestanding", "-nostdlib",
                       "-nostartfiles", "-fno-pic", "-fno-pie", "-fno-builtin", "-fno-inline",
-                      "-msmall-data-limit=0"] if compile_profile == "rv32im" else [])
+                      "-msmall-data-limit=0", "-gdwarf-4"] if compile_profile == "rv32im" else [])
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         src_name = "source.c" if lang == "c" else "source.s"
@@ -62,22 +62,6 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
         log_parts: list[str] = []
         outputs: list[str] = []
         errors: list[str] = []
-
-        # 어셈블리 산출물 생성 (C는 -S, asm은 입력 자체가 어셈블리)
-        if lang == "c":
-            asm_cmd = [compiler, *profile_flags, "-S", *opt_tokens, "-o", str(asm_path), str(src_path)]
-            asm_proc = _run(asm_cmd)
-            log_parts.append(_format_log(asm_cmd, asm_proc))
-            outputs.append(asm_proc.stdout)
-            errors.append(asm_proc.stderr)
-            if asm_proc.returncode != 0:
-                return CompileResult(
-                    status=BuildStatus.failed,
-                    log="\n".join(log_parts),
-                    stdout="\n".join(outputs), stderr="\n".join(errors),
-                    assembly=None,
-                    binary=None,
-                )
 
         # ELF 바이너리 생성
         link_flags = []

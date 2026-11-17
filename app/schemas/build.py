@@ -70,7 +70,7 @@ class BuildCompileResponse(BaseModel):
 
 
 class ObjdumpResponse(BaseModel):
-    """objdump 역어셈블 결과 — S3 presigned URL로 반환."""
+    """저장된 ELF의 정적 역어셈블 결과를 직접 반환."""
 
     file_id: uuid.UUID | None = None
     build_id: uuid.UUID | None = None

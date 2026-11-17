@@ -1,8 +1,12 @@
 syntax = "proto3";
 package archreactor.tutor.v1;
 
-// Connectivity sample only. Real tutoring will use separate RPCs.
-service Tutor { rpc Sample(SampleRequest) returns (SampleResponse); }
+service Tutor {
+  rpc Sample(SampleRequest) returns (SampleResponse);
+  rpc Explain(ExplainRequest) returns (TutorResponse);
+  rpc Compile(CompileRequest) returns (TutorResponse);
+  rpc Analyze(AnalyzeRequest) returns (TutorResponse);
+}
 message SampleRequest {
   string request_id = 1;
   string message = 2;
@@ -14,4 +18,36 @@ message SampleResponse {
   string message = 4;
   string reply = 5;
   bool sample = 6;
+}
+
+message ExplainItem {
+  string kind = 1;
+  string text = 2;
+  optional int32 line = 3;
+  optional string pc = 4;
+}
+message ExplainRequest {
+  string request_id = 1;
+  repeated ExplainItem items = 2;
+}
+message CompileRequest {
+  string request_id = 1;
+  string source = 2;
+  string lang = 3;
+  optional string assembly = 4;
+}
+message AnalyzeRequest {
+  string request_id = 1;
+  // CORE result schema 1.0, not the outer BE response envelope.
+  string result_json = 2;
+  string source = 3;
+  string source_file = 4;
+  bytes elf = 5;
+}
+message TutorResponse {
+  string request_id = 1;
+  string schema_version = 2;
+  string tutor_version = 3;
+  // Additive tutor schema 1.0 shared with the existing FE REST envelope.
+  string result_json = 4;
 }

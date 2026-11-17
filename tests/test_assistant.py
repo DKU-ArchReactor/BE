@@ -1,11 +1,9 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
-from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException
 import pytest
 from sqlalchemy import create_engine, select
@@ -17,117 +15,13 @@ from app.core.deps import get_current_user
 from app.models.assistant_usage import AssistantUsage
 from app.routers import assistant
 from app.schemas.assistant import ChatRequest
-from app.services.tutor.agent import AgentError, get_agent_provider
-from app.services.tutor.bedrock import BedrockProvider
-from app.services.tutor.usage import reserve_request
+from app.services.assistant.agent import AgentError, get_agent_provider
+from app.services.assistant.usage import reserve_request
 
 PAYLOAD = {'messages': [{'role': 'user', 'content': '스톨이 뭐야?'}]}
 
 
-class FakeStream:
-    def __init__(self, events):
-        self.events = events
-        self.closed = Event()
-
-    def __iter__(self):
-        yield from self.events
-
-    def close(self):
-        self.closed.set()
-
-
-def test_provider_streams_text_usage_and_closes():
-    stream = FakeStream([
-        {'contentBlockDelta': {'delta': {'text': '스톨은 '}}},
-        {'contentBlockDelta': {'delta': {'reasoningContent': {'text': 'private reasoning'}}}},
-        {'contentBlockDelta': {'delta': {'text': '대기입니다.'}}},
-        {'messageStop': {'stopReason': 'end_turn'}},
-        {'metadata': {'usage': {'inputTokens': 10, 'outputTokens': 5, 'totalTokens': 15}}},
-    ])
-    client = Mock()
-    client.converse_stream.return_value = {'stream': stream}
-
-    async def run():
-        return [event async for event in BedrockProvider(client).stream(ChatRequest(**PAYLOAD))]
-
-    result = asyncio.run(run())
-    assert ''.join(e['text'] for e in result if e['type'] == 'delta') == '스톨은 대기입니다.'
-    assert result[-1] == {'type': 'done', 'stop_reason': 'end_turn', 'usage': {'inputTokens': 10, 'outputTokens': 5, 'totalTokens': 15}}
-    assert stream.closed.wait(1)
-    request = client.converse_stream.call_args.kwargs
-    assert request['inferenceConfig']['maxTokens'] == 2048
-    assert request['modelId'] == 'anthropic.claude-sonnet-5'
-    assert '자동으로 조회할 수 없습니다' in request['system'][0]['text']
-    assert 'toolConfig' not in request
-
-
-def test_provider_cleans_up_when_caller_stops():
-    stream = FakeStream([{'contentBlockDelta': {'delta': {'text': 'x'}}}] * 1000)
-    client = Mock()
-    client.converse_stream.return_value = {'stream': stream}
-
-    async def run():
-        generator = BedrockProvider(client).stream(ChatRequest(**PAYLOAD))
-        await anext(generator)
-        await generator.aclose()
-
-    asyncio.run(run())
-    assert stream.closed.wait(1)
-
-
-def test_late_sdk_response_is_closed_after_cancellation():
-    entered, release = Event(), Event()
-    stream = FakeStream([])
-    client = Mock()
-
-    def open_stream(**kwargs):
-        entered.set()
-        release.wait(2)
-        return {'stream': stream}
-
-    client.converse_stream.side_effect = open_stream
-
-    async def run():
-        generator = BedrockProvider(client).stream(ChatRequest(**PAYLOAD))
-        task = asyncio.create_task(anext(generator))
-        assert await asyncio.to_thread(entered.wait, 1)
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
-        release.set()
-        assert await asyncio.to_thread(stream.closed.wait, 1)
-
-    asyncio.run(run())
-
-
-@pytest.mark.parametrize('code, public_code', [('AccessDeniedException', 'MODEL_ACCESS_DENIED'), ('ThrottlingException', 'MODEL_BUSY')])
-def test_provider_errors_are_sanitized(code, public_code):
-    client = Mock()
-    client.converse_stream.side_effect = ClientError({'Error': {'Code': code, 'Message': 'sensitive upstream details'}}, 'ConverseStream')
-
-    async def run():
-        with pytest.raises(AgentError) as error:
-            async for _ in BedrockProvider(client).stream(ChatRequest(**PAYLOAD)):
-                pass
-        assert error.value.code == public_code
-        assert 'sensitive' not in str(error.value)
-    asyncio.run(run())
-
-
-@pytest.mark.parametrize('events', [[], [{'internalServerException': {'message': 'private'}}]])
-def test_truncated_or_exception_stream_does_not_report_success(events):
-    stream = FakeStream(events)
-    client = Mock()
-    client.converse_stream.return_value = {'stream': stream}
-
-    async def run():
-        with pytest.raises(AgentError):
-            async for _ in BedrockProvider(client).stream(ChatRequest(**PAYLOAD)):
-                pass
-    asyncio.run(run())
-    assert stream.closed.wait(1)
-
-
-async def call(app, payload=PAYLOAD, disconnect_on_delta=False):
+async def call(app, payload=PAYLOAD, disconnect_on_delta=False, disconnect_after=None):
     output = []
     initial = True
     disconnect = asyncio.Event()
@@ -137,6 +31,9 @@ async def call(app, payload=PAYLOAD, disconnect_on_delta=False):
         if initial:
             initial = False
             return {'type': 'http.request', 'body': json.dumps(payload).encode(), 'more_body': False}
+        if disconnect_after is not None:
+            await asyncio.sleep(disconnect_after)
+            disconnect.set()
         await disconnect.wait()
         return {'type': 'http.disconnect'}
 
@@ -252,15 +149,50 @@ def test_shared_daily_quota_persists_across_sessions(monkeypatch):
     engine = create_engine('sqlite://')
     AssistantUsage.__table__.create(engine)
     monkeypatch.setattr(settings, 'ASSISTANT_DAILY_REQUESTS', 2)
+    monkeypatch.setattr(settings, 'ASSISTANT_COOLDOWN_SECONDS', 5)
     now = datetime(2026, 11, 9, tzinfo=timezone.utc)
     with Session(engine) as db:
         reserve_request(db, 'alice', now=now)
     with Session(engine) as db:
         with pytest.raises(HTTPException):
-            reserve_request(db, 'alice', now=now + timedelta(seconds=1))
-        reserve_request(db, 'alice', now=now + timedelta(seconds=10))
+            reserve_request(db, 'alice', now=now + timedelta(seconds=4.999))
+        reserve_request(db, 'alice', now=now + timedelta(seconds=5))
         with pytest.raises(HTTPException):
             reserve_request(db, 'alice', now=now + timedelta(seconds=20))
         reserve_request(db, 'bob', now=now)
         reserve_request(db, 'alice', now=now + timedelta(days=1))
         assert sorted(db.scalars(select(AssistantUsage.request_count))) == [1, 1, 2]
+
+
+def test_readiness_endpoints_do_not_construct_model_or_use_database(monkeypatch):
+    monkeypatch.setattr(settings, 'ASSISTANT_ENABLED', False)
+    # Call the status function directly; transport stream is exercised below.
+    assert assistant.status() == {'enabled': False, 'code': 'AGENT_NOT_CONFIGURED', 'editor_source_supported': True}
+    response = assistant.transport_check()
+    assert response.headers['content-type'].startswith('text/event-stream')
+    assert response.headers['x-accel-buffering'] == 'no'
+    assert 'no-store' in response.headers['cache-control']
+
+    async def collect():
+        return [frame async for frame in response.body_iterator]
+    frames = asyncio.run(collect())
+    assert len(frames) == 2
+    assert '"diagnostic"' in frames[0] and '"done"' in frames[1]
+    assert all('"model_invoked": false' in frame for frame in frames)
+
+
+def test_500_request_daily_boundary_and_utc_reset(monkeypatch):
+    engine = create_engine('sqlite://')
+    AssistantUsage.__table__.create(engine)
+    monkeypatch.setattr(settings, 'ASSISTANT_DAILY_REQUESTS', 500)
+    monkeypatch.setattr(settings, 'ASSISTANT_COOLDOWN_SECONDS', 5)
+    now = datetime(2026, 11, 13, 22, tzinfo=timezone.utc)
+    with Session(engine) as db:
+        for index in range(500):
+            reserve_request(db, 'quota-500', now=now + timedelta(seconds=5 * index))
+        with pytest.raises(HTTPException) as error:
+            reserve_request(db, 'quota-500', now=now + timedelta(seconds=2500))
+        assert error.value.status_code == 429
+        reserve_request(db, 'other-user', now=now + timedelta(seconds=2500))
+        reserve_request(db, 'quota-500', now=datetime(2026, 11, 14, tzinfo=timezone.utc))
+        assert sorted(db.scalars(select(AssistantUsage.request_count))) == [1, 1, 500]
