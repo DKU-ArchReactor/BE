@@ -29,6 +29,8 @@ class Build(Base):
     binary_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     assembly_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stdout: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stderr: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[BuildStatus | None] = mapped_column(
         SAEnum(BuildStatus, name="build_status", native_enum=False, length=16),
         nullable=True,

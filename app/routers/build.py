@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user_optional
-from app.core.storage import presigned_get_url
+from app.core.deps import get_current_user, get_current_user_optional
+from app.core.storage import presigned_get_url, download_bytes
 from app.core.simulation_token import TOKEN_TTL_SECONDS, create_simulation_token
 from app.models.build import Build, BuildStatus
 from app.models.user import User
@@ -16,6 +16,8 @@ from app.schemas.build import (
     ObjdumpResponse,
 )
 from app.services import build_service, file_service
+from app.services.tutor import compile_explanations
+from app.services.binary.inspect import inspect_elf, InspectionError, MAX_ELF
 
 router = APIRouter(prefix="/api/v1/build", tags=["build"])
 
@@ -81,6 +83,8 @@ def _compile_from_file(
 
     build.status = result.status
     build.log = result.log
+    build.stdout = result.stdout
+    build.stderr = result.stderr
     build.assembly_key = assembly_key
     build.binary_key = binary_key
     db.commit()
@@ -91,6 +95,9 @@ def _compile_from_file(
         assembly_url=presigned_get_url(assembly_key) if assembly_key else None,
         binary_url=presigned_get_url(binary_key) if binary_key else None,
         log=result.log,
+        analysis=result.analysis, analysis_error=result.analysis_error,
+        tutor=compile_explanations(file.content, file.lang, result.assembly)
+        if result.status == BuildStatus.success and body.compile_profile == "rv32im" else None,
     )
 
 
@@ -122,32 +129,40 @@ def _compile_from_content(body: BuildCompileRequest) -> BuildCompileResponse:
         assembly_url=presigned_get_url(assembly_key) if assembly_key else None,
         binary_url=presigned_get_url(binary_key) if binary_key else None,
         log=result.log,
+        analysis=result.analysis, analysis_error=result.analysis_error,
+        tutor=compile_explanations(body.content, body.lang, result.assembly)
+        if result.status == BuildStatus.success and body.compile_profile == "rv32im" else None,
     )
 
 
-@router.get(
-    "/objdump",
-    response_model=ObjdumpResponse,
-    summary="역어셈블",
-    description="빌드된 ELF 바이너리의 기계어를 어셈블리어로 변환하여 반환한다.",
-    response_description="objdump 결과 텍스트",
-)
-def objdump_file(
-    file_id: uuid.UUID = Query(..., description="역어셈블 대상 파일 ID"),
-):
-    # TODO: 최신 성공 빌드의 binary_path 를 objdump 실행 후 텍스트 반환
-    raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
+def owned_build(db: Session, user: User, build_id: uuid.UUID) -> Build:
+    build = db.get(Build, build_id)
+    if build is None:
+        raise HTTPException(404, "Build not found")
+    if build.file.project.user_id != user.user_id:
+        raise HTTPException(403, "Access denied")
+    return build
 
 
-@router.get(
-    "/logs",
-    response_model=BuildLogResponse,
-    summary="로그 조회",
-    description="지정된 빌드의 컴파일 에러 및 경고 메시지(stdout/stderr)를 조회한다.",
-    response_description="빌드 로그 텍스트",
-)
-def get_build_logs(
-    build_id: uuid.UUID = Query(..., description="조회할 빌드 ID"),
-):
-    # TODO: build_id 로 저장된 로그 파일/컬럼 읽어 반환
-    raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
+@router.get("/objdump", response_model=ObjdumpResponse, summary="저장된 빌드 역어셈블")
+def objdump_file(build_id: uuid.UUID = Query(...),
+                 db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    build = owned_build(db, user, build_id)
+    if build.status != BuildStatus.success or not build.binary_key:
+        raise HTTPException(409, "Build has no successful ELF artifact")
+    try:
+        result = inspect_elf(download_bytes(build.binary_key, MAX_ELF))
+    except ValueError:
+        raise HTTPException(413, "ELF exceeds input limit") from None
+    except InspectionError as error:
+        raise HTTPException(422, str(error)) from None
+    return ObjdumpResponse(file_id=build.file_id, build_id=build.build_id, **result)
+
+
+@router.get("/logs", response_model=BuildLogResponse, summary="빌드 로그 조회")
+def get_build_logs(build_id: uuid.UUID = Query(...),
+                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    build = owned_build(db, user, build_id)
+    return BuildLogResponse(build_id=build.build_id, log=build.log or "",
+                            stdout=build.stdout, stderr=build.stderr,
+                            streams_available=build.stdout is not None and build.stderr is not None)

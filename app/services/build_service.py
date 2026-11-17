@@ -28,6 +28,10 @@ class CompileResult:
     log: str
     assembly: str | None
     binary: bytes | None
+    stdout: str | None = None
+    stderr: str | None = None
+    analysis: dict | None = None
+    analysis_error: str | None = None
 
 
 def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: str = "native") -> CompileResult:
@@ -43,7 +47,7 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
     if compile_profile not in {"native", "rv32im"}:
         raise UnsupportedOptionsError("Unsupported compile profile")
     compiler = os.environ.get("RISCV_CC", "riscv64-unknown-elf-gcc") if compile_profile == "rv32im" else "gcc"
-    profile_flags = (["-march=rv32im", "-mabi=ilp32", "-O0", "-ffreestanding", "-nostdlib",
+    profile_flags = (["-g", "-march=rv32im", "-mabi=ilp32", "-O0", "-ffreestanding", "-nostdlib",
                       "-nostartfiles", "-fno-pic", "-fno-pie", "-fno-builtin", "-fno-inline",
                       "-msmall-data-limit=0"] if compile_profile == "rv32im" else [])
     with tempfile.TemporaryDirectory() as tmp:
@@ -56,16 +60,21 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
         src_path.write_text(content)
 
         log_parts: list[str] = []
+        outputs: list[str] = []
+        errors: list[str] = []
 
         # 어셈블리 산출물 생성 (C는 -S, asm은 입력 자체가 어셈블리)
         if lang == "c":
             asm_cmd = [compiler, *profile_flags, "-S", *opt_tokens, "-o", str(asm_path), str(src_path)]
             asm_proc = _run(asm_cmd)
             log_parts.append(_format_log(asm_cmd, asm_proc))
+            outputs.append(asm_proc.stdout)
+            errors.append(asm_proc.stderr)
             if asm_proc.returncode != 0:
                 return CompileResult(
                     status=BuildStatus.failed,
                     log="\n".join(log_parts),
+                    stdout="\n".join(outputs), stderr="\n".join(errors),
                     assembly=None,
                     binary=None,
                 )
@@ -82,41 +91,39 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
         bin_cmd = [compiler, *profile_flags, *opt_tokens, *link_flags, "-o", str(elf_path), *inputs]
         bin_proc = _run(bin_cmd)
         log_parts.append(_format_log(bin_cmd, bin_proc))
+        outputs.append(bin_proc.stdout)
+        errors.append(bin_proc.stderr)
         if bin_proc.returncode != 0:
             return CompileResult(
                 status=BuildStatus.failed,
                 log="\n".join(log_parts),
+                stdout="\n".join(outputs), stderr="\n".join(errors),
                 assembly=asm_path.read_text() if asm_path.exists() else None,
                 binary=None,
             )
 
         assembly = asm_path.read_text() if asm_path.exists() else None
         binary = elf_path.read_bytes()
+        analysis = None
+        analysis_error = None
+        if compile_profile == "rv32im":
+            from app.services.binary.inspect import inspect_elf, InspectionError
+            try:
+                analysis = inspect_elf(binary)
+            except InspectionError as error:
+                analysis_error = str(error)
         return CompileResult(
             status=BuildStatus.success,
             log="\n".join(log_parts),
+            stdout="\n".join(outputs), stderr="\n".join(errors),
             assembly=assembly,
-            binary=binary,
+            binary=binary, analysis=analysis, analysis_error=analysis_error,
         )
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess:
-    try:
-        return subprocess.run(
-            cmd,
-            shell=False,
-            capture_output=True,
-            text=True,
-            timeout=COMPILE_TIMEOUT_SEC,
-        )
-    except subprocess.TimeoutExpired as e:
-        return subprocess.CompletedProcess(
-            cmd, returncode=124, stdout=e.stdout or "", stderr=f"timeout after {COMPILE_TIMEOUT_SEC}s"
-        )
-    except FileNotFoundError as e:
-        return subprocess.CompletedProcess(
-            cmd, returncode=127, stdout="", stderr=f"command not found: {e}"
-        )
+    from app.services.command_runner import run_command
+    return run_command(cmd, COMPILE_TIMEOUT_SEC)
 
 
 def _format_log(cmd: list[str], proc: subprocess.CompletedProcess) -> str:
