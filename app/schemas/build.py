@@ -61,6 +61,8 @@ class BuildCompileResponse(BaseModel):
     simulation_token: str | None = Field(
         None, description="직접 입력 RV32IM 빌드 성공 시 발급되는 익명 시뮬레이션 토큰"
     )
+    analysis: dict | None = None
+    analysis_error: str | None = None
     tutor: dict | None = Field(None, description="RV32IM 성공 빌드의 규칙 해설 (schema_version 1.0)")
     simulation_token_expires_in: int | None = Field(
         None, description="시뮬레이션 토큰 발급 시점부터의 유효 기간(초)"
@@ -68,15 +70,23 @@ class BuildCompileResponse(BaseModel):
 
 
 class ObjdumpResponse(BaseModel):
-    """objdump 역어셈블 결과 — S3 presigned URL로 반환."""
+    """저장된 ELF의 정적 역어셈블 결과를 직접 반환."""
 
-    file_id: uuid.UUID
-    assembly_url: str = Field(..., description="어셈블리 텍스트 S3 presigned URL")
+    file_id: uuid.UUID | None = None
+    build_id: uuid.UUID | None = None
+    assembly_url: str | None = None
+    disassembly: str
+    instructions: list[dict]
+    source_map: dict[str, list[str]]
+    sections: list[dict]
+    mapping_available: bool
 
 
 class BuildLogResponse(BaseModel):
     """컴파일 로그 (stdout/stderr) 조회 결과."""
 
     build_id: uuid.UUID
-    stdout: str = ""
-    stderr: str = ""
+    log: str = ""
+    stdout: str | None = None
+    stderr: str | None = None
+    streams_available: bool = False

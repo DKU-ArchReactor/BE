@@ -57,9 +57,10 @@ def test_concurrent_startup_and_repeat_preserve_data(isolated_database):
                 process.kill()
                 process.communicate()
     with engine.begin() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "f821a73d9001"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "f281a64b209e"
         assert inspect(connection).has_table('assistant_usage')
         assert inspect(connection).has_table('assistant_executions')
+        assert {'stdout', 'stderr'} <= {c['name'] for c in inspect(connection).get_columns('builds')}
         connection.execute(text(
             "INSERT INTO users (user_id, email, password_hash, name) "
             "VALUES ('test', 'test@example.com', 'unused', 'test')"

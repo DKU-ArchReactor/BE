@@ -1,5 +1,6 @@
 from unittest.mock import patch
 import shutil
+import sys
 
 import pytest
 
@@ -25,7 +26,8 @@ def test_compile_source_success_for_valid_c():
 
 @pytest.mark.skipif(not shutil.which('gcc'), reason='native GCC is not installed')
 def test_compile_source_success_for_valid_asm():
-    asm_code = ".globl main\nmain:\n  ret\n"
+    entry = "_main" if sys.platform == "darwin" else "main"
+    asm_code = f".globl {entry}\n{entry}:\n  ret\n"
     result = build_service.compile_source(
         content=asm_code, lang="asm", compiler_opt=""
     )
