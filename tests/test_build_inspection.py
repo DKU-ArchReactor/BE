@@ -39,27 +39,13 @@ def test_logs_preserve_streams_and_legacy(api):
     assert not result['streams_available']
 
 
-@pytest.mark.parametrize('path', ['logs', 'objdump'])
-def test_private_builds_and_missing(api, path):
+def test_private_builds_and_missing(api):
     client, record, db = api
     record.file.project.user_id = 'other'
-    url = f'/api/v1/build/{path}?build_id={record.build_id}'
+    url = f'/api/v1/build/logs?build_id={record.build_id}'
     assert client.get(url).status_code == 403
     db.get.return_value = None
     assert client.get(url).status_code == 404
-
-
-def test_disassembly_success_and_failed_build(api, monkeypatch):
-    client, record, _ = api
-    download = Mock(return_value=b'elf')
-    monkeypatch.setattr(build, 'download_bytes', download)
-    monkeypatch.setattr(build, 'inspect_elf', lambda binary: dict(disassembly='asm', instructions=[],
-        source_map={}, sections=[], mapping_available=False))
-    url = f'/api/v1/build/objdump?build_id={record.build_id}'
-    assert client.get(url).json()['disassembly'] == 'asm'
-    record.status = BuildStatus.failed
-    assert client.get(url).status_code == 409
-    assert download.call_count == 1
 
 
 def test_mapping_one_to_many_and_startup_excluded():

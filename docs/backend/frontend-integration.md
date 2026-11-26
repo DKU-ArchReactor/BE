@@ -37,12 +37,13 @@ Source line numbers are one-based; PC addresses are hexadecimal strings. Startup
 
 ## Saved build APIs
 
-Both routes require the existing login authorization header and verify build ownership. Use a specific build ID; the previous objdump endpoint was unimplemented and its file_id-only signature did not identify an immutable build.
+The saved-build log route requires the existing login authorization header and verifies build ownership. Use a specific build ID.
 
 - `GET /api/v1/build/logs?build_id=<UUID>` returns `build_id`, `log`, `stdout`, `stderr`, `streams_available`. Historical rows retain combined `log`; separate streams are null and `streams_available=false`. Do not label combined historical output as stdout.
-- `GET /api/v1/build/objdump?build_id=<UUID>` returns inline inspection data plus `build_id`, `file_id`. `assembly_url` is null; display `disassembly` directly. No new storage URL is created.
 
-Missing build: 404. Other owner's build: 403. Failed build with no ELF: 409. Invalid ELF/inspection failure: 422. Download exceeding the ELF size limit: 413.
+Missing build: 404. Other owner's build: 403.
+
+As of the 2026-11-26 source cleanup, `GET /api/v1/build/objdump` is removed and the professor router (`GET /professor/users`, `PATCH /professor/users/{user_id}/role`) is no longer mounted. These paths return 404 and are absent from OpenAPI after deployment. Professor roles and stored user data are unchanged. Internal ELF inspection remains part of compilation, with mappings returned in `analysis`; simulation mappings are unchanged. Build logs remain available because the frontend source includes a log viewer, even though the inspected production bundle did not include it. Health checks, TUTOR sample, assistant status and SSE transport diagnostics remain registered. This source change alone does not update the running deployment.
 
 Apply Alembic revision `f281a64b209e` before running the new saved-build code. It adds nullable stdout/stderr columns without rewriting existing logs. Production startup already runs migrations; local integration must use its own local database.
 
