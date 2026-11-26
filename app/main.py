@@ -10,7 +10,6 @@ from app.routers import tutor_sample as tutor_sample_router
 from app.routers import build as build_router
 from app.routers import files as files_router
 from app.routers import simulation as simulation_router
-from app.routers import professor as professor_router
 
 from app.services.assistant.telemetry import configure_usage_logging
 from app.services.assistant.maintenance import lifespan
@@ -26,7 +25,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(auth_router.router)
-app.include_router(professor_router.router)
+# Professor management is intentionally not exposed by the public API.
 app.include_router(files_router.router)
 app.include_router(build_router.router)
 app.include_router(tutor_router.router)

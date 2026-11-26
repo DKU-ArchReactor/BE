@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_user_optional
-from app.core.storage import presigned_get_url, download_bytes
+from app.core.storage import presigned_get_url
 from app.core.simulation_token import TOKEN_TTL_SECONDS, create_simulation_token
 from app.models.build import Build, BuildStatus
 from app.models.user import User
@@ -13,11 +13,9 @@ from app.schemas.build import (
     BuildCompileRequest,
     BuildCompileResponse,
     BuildLogResponse,
-    ObjdumpResponse,
 )
 from app.services import build_service, file_service
 from app.services.tutor import compile_explanations
-from app.services.binary.inspect import inspect_elf, InspectionError, MAX_ELF
 
 router = APIRouter(prefix="/api/v1/build", tags=["build"])
 
@@ -142,21 +140,6 @@ def owned_build(db: Session, user: User, build_id: uuid.UUID) -> Build:
     if build.file.project.user_id != user.user_id:
         raise HTTPException(403, "Access denied")
     return build
-
-
-@router.get("/objdump", response_model=ObjdumpResponse, summary="저장된 빌드 역어셈블")
-def objdump_file(build_id: uuid.UUID = Query(...),
-                 db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    build = owned_build(db, user, build_id)
-    if build.status != BuildStatus.success or not build.binary_key:
-        raise HTTPException(409, "Build has no successful ELF artifact")
-    try:
-        result = inspect_elf(download_bytes(build.binary_key, MAX_ELF))
-    except ValueError:
-        raise HTTPException(413, "ELF exceeds input limit") from None
-    except InspectionError as error:
-        raise HTTPException(422, str(error)) from None
-    return ObjdumpResponse(file_id=build.file_id, build_id=build.build_id, **result)
 
 
 @router.get("/logs", response_model=BuildLogResponse, summary="빌드 로그 조회")

@@ -69,19 +69,6 @@ class BuildCompileResponse(BaseModel):
     )
 
 
-class ObjdumpResponse(BaseModel):
-    """저장된 ELF의 정적 역어셈블 결과를 직접 반환."""
-
-    file_id: uuid.UUID | None = None
-    build_id: uuid.UUID | None = None
-    assembly_url: str | None = None
-    disassembly: str
-    instructions: list[dict]
-    source_map: dict[str, list[str]]
-    sections: list[dict]
-    mapping_available: bool
-
-
 class BuildLogResponse(BaseModel):
     """컴파일 로그 (stdout/stderr) 조회 결과."""
 
