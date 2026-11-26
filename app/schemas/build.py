@@ -4,6 +4,23 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 
+class SourceDiagnostic(BaseModel):
+    code: str
+    message: str
+    line: int
+    column: int
+
+
+class BasicCValidationRequest(BaseModel):
+    content: str = Field(..., max_length=65535)
+
+
+class BasicCValidationResponse(BaseModel):
+    policy: Literal['basic-c-v1'] = 'basic-c-v1'
+    valid: bool
+    diagnostics: list[SourceDiagnostic]
+
+
 class BuildCompileRequest(BaseModel):
     """POST /api/v1/build/compile 요청 바디.
 
@@ -63,6 +80,7 @@ class BuildCompileResponse(BaseModel):
     )
     analysis: dict | None = None
     analysis_error: str | None = None
+    diagnostics: list[SourceDiagnostic] = Field(default_factory=list)
     tutor: dict | None = Field(None, description="RV32IM 성공 빌드의 규칙 해설 (schema_version 1.0)")
     simulation_token_expires_in: int | None = Field(
         None, description="시뮬레이션 토큰 발급 시점부터의 유효 기간(초)"

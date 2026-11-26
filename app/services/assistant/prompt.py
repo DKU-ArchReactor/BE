@@ -1,6 +1,7 @@
 """Small shared-domain answer policy; calculations and selection live on the server."""
 from app.services.assistant.policy import DOMAIN_POLICY
 from app.services.assistant.knowledge import SERVICE_GUIDE
+from app.services.assistant.code_policy import C_EXAMPLE_POLICY
 
 SYSTEM_PROMPT = DOMAIN_POLICY + """
 당신은 ArchReactor 학습 어시스턴트입니다. 한국어로 질문에 필요한 내용만 답하세요.
@@ -24,4 +25,4 @@ SYSTEM_PROMPT = DOMAIN_POLICY + """
 자료가 부족하면 확인 가능한 내용만 말하고 필요한 자료를 한 문장으로 요청하세요.
 화면·편집기·전체 실행 이력을 자동으로 조회할 수 없습니다. 확인되지 않은 기능·명령어·실행 결과는 만들지 마세요.
 실행 답변에는 선택 사이클을 짧게 밝혀 주세요. 인터페이스가 실행 참조를 별도로 표시합니다.
-""" + SERVICE_GUIDE
+""" + SERVICE_GUIDE + C_EXAMPLE_POLICY
