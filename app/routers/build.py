@@ -13,11 +13,21 @@ from app.schemas.build import (
     BuildCompileRequest,
     BuildCompileResponse,
     BuildLogResponse,
+    BasicCValidationRequest,
+    BasicCValidationResponse,
 )
 from app.services import build_service, file_service
 from app.services.tutor import compile_explanations
 
 router = APIRouter(prefix="/api/v1/build", tags=["build"])
+
+
+@router.post('/validate-c', response_model=BasicCValidationResponse,
+             summary='기초 C 문법 범위 검사',
+             description='컴파일·실행·저장 없이 main 단일 함수 및 입출력 없는 기초 C 범위를 검사한다.')
+def validate_c(body: BasicCValidationRequest):
+    diagnostics = build_service.validate_basic_c(body.content)
+    return BasicCValidationResponse(valid=not diagnostics, diagnostics=diagnostics)
 
 
 @router.post(
@@ -94,6 +104,7 @@ def _compile_from_file(
         binary_url=presigned_get_url(binary_key) if binary_key else None,
         log=result.log,
         analysis=result.analysis, analysis_error=result.analysis_error,
+        diagnostics=result.diagnostics or [],
         tutor=compile_explanations(file.content, file.lang, result.assembly)
         if result.status == BuildStatus.success and body.compile_profile == "rv32im" else None,
     )
@@ -128,6 +139,7 @@ def _compile_from_content(body: BuildCompileRequest) -> BuildCompileResponse:
         binary_url=presigned_get_url(binary_key) if binary_key else None,
         log=result.log,
         analysis=result.analysis, analysis_error=result.analysis_error,
+        diagnostics=result.diagnostics or [],
         tutor=compile_explanations(body.content, body.lang, result.assembly)
         if result.status == BuildStatus.success and body.compile_profile == "rv32im" else None,
     )

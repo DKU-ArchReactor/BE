@@ -1,6 +1,7 @@
 """Curated service facts grounded in backend routes; no invented UI controls."""
 SERVICE_GUIDE = """검증된 ArchReactor 기능 안내:
 - C/ASM 입력을 RV32IM 바이너리로 컴파일하고 어셈블리 및 규칙 해설을 제공한다.
+- RV32IM C는 기초 C 범위를 검사한다. int main(void) 하나와 정수형 지역 변수·고정 크기 배열·조건문·반복문을 사용한다. 전처리 지시문, 함수 호출, 입출력, 전역 선언, 포인터, 실수형은 지원하지 않는다. 입력은 초기값으로 지정하고 결과는 변수·배열 또는 정수 반환값으로 확인한다.
 - single은 명령어를 한 클록에 완료하는 모델, pipeline은 5단계 IF/ID/EX/MEM/WB 모델이다.
 - 시뮬레이션은 COMPLETED, CYCLE_LIMIT, SIMULATION_ERROR로 구분된다. 실행 제한은 최대 2000클록이다.
 - 코드/명령어의 규칙 해설과 실행 결과의 스톨·포워딩·플러시 근거 해설을 제공한다.

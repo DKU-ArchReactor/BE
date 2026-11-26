@@ -9,6 +9,7 @@ from pathlib import Path
 from app.core.storage import upload_bytes
 from app.models.build import BuildStatus
 from app.services.binary import process_binary
+from app.services.basic_c import validate_basic_c
 
 COMPILE_TIMEOUT_SEC = 10
 SUPPORTED_LANGS = {"c", "asm"}
@@ -32,6 +33,7 @@ class CompileResult:
     stderr: str | None = None
     analysis: dict | None = None
     analysis_error: str | None = None
+    diagnostics: list[dict] | None = None
 
 
 def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: str = "native") -> CompileResult:
@@ -46,6 +48,12 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
         raise UnsupportedOptionsError("Unsupported compiler option")
     if compile_profile not in {"native", "rv32im"}:
         raise UnsupportedOptionsError("Unsupported compile profile")
+    if lang == 'c' and compile_profile == 'rv32im':
+        diagnostics = validate_basic_c(content)
+        if diagnostics:
+            log = '\n'.join(f"{d['line']}행 {d['column']}열: {d['message']}" for d in diagnostics)
+            return CompileResult(BuildStatus.failed, log, None, None,
+                                 stdout='', stderr=log, diagnostics=diagnostics)
     compiler = os.environ.get("RISCV_CC", "riscv64-unknown-elf-gcc") if compile_profile == "rv32im" else "gcc"
     profile_flags = (["-g", "-march=rv32im", "-mabi=ilp32", "-O0", "-ffreestanding", "-nostdlib",
                       "-nostartfiles", "-fno-pic", "-fno-pie", "-fno-builtin", "-fno-inline",
