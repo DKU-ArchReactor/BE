@@ -62,6 +62,32 @@ def test_mapping_one_to_many_and_startup_excluded():
     assert result['source_map'] == {'2': ['0x00010004', '0x00010008']}
     assert result['instructions'][0]['source_line'] is None
     assert result['instructions'][-1]['source_line'] is None
+    assert result['instructions'][0]['runtime_context']['function'] == '_start'
+    assert result['instructions'][-1]['runtime_context'] is None
+
+
+def test_runtime_context_requires_matching_function_and_source_evidence():
+    result = parse_disassembly('''00010000 <malloc>:
+/runtime/allocator.c:32
+ 10000: 00000013 nop
+00010004 <free>:
+/runtime/allocator.c:57
+ 10004: 00008067 ret
+00010008 <malloc>:
+/tmp/source.c:2
+ 10008: 00000013 nop
+0001000c <_start>:
+ 1000c: 00000013 nop
+00010010 <unknown>:
+/runtime/allocator.c:60
+ 10010: 00000013 nop
+''')
+    items = result['instructions']
+    assert items[0]['runtime_context']['label'] == 'malloc 내부'
+    assert items[1]['runtime_context']['label'] == 'free 내부'
+    assert '이전 값이 남을 수' in items[1]['runtime_context']['detail']
+    assert all(item['runtime_context'] is None for item in items[2:])
+    assert result['source_map'] == {'2': ['0x00010008']}
 
 
 @pytest.mark.parametrize('data', [b'', b'not elf', b'x' * (256 * 1024 + 1)])
@@ -70,7 +96,7 @@ def test_invalid_elf_rejected_without_tool(data):
         inspect_elf(data)
 
 
-def test_compile_keeps_single_pass_dwarf4_and_nonfatal_inspection(monkeypatch):
+def test_compile_keeps_single_user_source_pass_dwarf4_and_nonfatal_inspection(monkeypatch):
     import subprocess
     from pathlib import Path
     from app.services import build_service
@@ -85,7 +111,11 @@ def test_compile_keeps_single_pass_dwarf4_and_nonfatal_inspection(monkeypatch):
     monkeypatch.setattr(build_service, '_run', compile_command)
     monkeypatch.setattr(inspector, 'inspect_elf', unavailable)
     result = build_service.compile_source('int main(){return 0;}', 'c', '-O2', 'rv32im')
-    assert len(calls) == 1 and '-S' not in calls[0] and '-gdwarf-4' in calls[0]
+    assert len(calls) == 2
+    assert all('-S' not in command and '-gdwarf-4' in command for command in calls)
+    assert '-c' in calls[0] and any(path.endswith('/allocator.c') for path in calls[0])
+    assert sum(any(path.endswith('/source.c') for path in command) for command in calls) == 1
     assert result.status == BuildStatus.success and result.binary == b'elf'
-    assert result.stdout == 'compiler stdout' and result.stderr == 'compiler warning'
+    assert result.stdout == 'compiler stdout\ncompiler stdout'
+    assert result.stderr == 'compiler warning\ncompiler warning'
     assert result.analysis is None and result.analysis_error == 'inspection unavailable'

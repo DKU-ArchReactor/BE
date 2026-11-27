@@ -79,7 +79,27 @@ def compile_source(content: str, lang: str, compiler_opt: str, compile_profile: 
             link_flags = ["-Wl,--no-relax", "-Wl,-T," + str(runtime / "link.ld")]
             # C entry is _start -> main -> ecall 10; assembly defines _start itself.
             if lang == "c":
+                allocator = tmp_path / 'allocator.o'
+                runtime_cmd = [compiler, '-march=rv32im', '-mabi=ilp32', '-O2', '-g', '-gdwarf-4',
+                               '-ffreestanding', '-fno-builtin', '-fno-strict-aliasing',
+                               '-fno-tree-loop-distribute-patterns',
+                               '-fno-pic', '-fno-pie', '-msmall-data-limit=0',
+                               '-ffunction-sections', '-fdata-sections',
+                               '-c', str(runtime / 'allocator.c'), '-o', str(allocator)]
+                runtime_proc = _run(runtime_cmd)
+                log_parts.append(_format_log(runtime_cmd, runtime_proc))
+                outputs.append(runtime_proc.stdout)
+                errors.append(runtime_proc.stderr)
+                if runtime_proc.returncode:
+                    return CompileResult(BuildStatus.failed, '\n'.join(log_parts), None, None,
+                                         stdout='\n'.join(outputs), stderr='\n'.join(errors))
+                # Force the trusted declarations even when users omit the optional
+                # include. User preprocessing is restricted by validate_basic_c.
+                profile_flags += ['-I', str(runtime / 'include')]
+                src_path.write_text('#include <stdlib.h>\n#line 1 "' + str(src_path) + '"\n' + content)
+                link_flags += ['-Wl,--gc-sections']
                 inputs.insert(0, str(runtime / "start.S"))
+                inputs.append(str(allocator))
         bin_cmd = [compiler, *profile_flags, *opt_tokens, *link_flags, "-o", str(elf_path), *inputs]
         bin_proc = _run(bin_cmd)
         log_parts.append(_format_log(bin_cmd, bin_proc))

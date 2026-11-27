@@ -4,6 +4,7 @@ import re
 from app.services.command_runner import run_command
 import tempfile
 from pathlib import Path
+from app.services.binary.runtime_context import runtime_context
 
 MAX_ELF = 256 * 1024
 MAX_OUTPUT = 4 * 1024 * 1024
@@ -18,8 +19,11 @@ def parse_disassembly(text: str) -> dict:
     source_map = {}
     source_line = None
     source_file = None
+    function = None
     for line in text.splitlines():
-        if re.match(r'^\s*[0-9a-fA-F]+ <.*>:$', line):
+        symbol = re.match(r'^\s*[0-9a-fA-F]+ <([^>]+)>:$', line)
+        if symbol:
+            function = symbol[1]
             source_line = source_file = None
         location = re.match(r'^(.*\.(?:c|s|S)):(\d+)(?:\s.*)?$', line.strip())
         if location:
@@ -33,7 +37,9 @@ def parse_disassembly(text: str) -> dict:
         # Startup code must not be assigned to the user's source file.
         mapped_line = source_line if source_file == 'source.c' else None
         instructions.append({'pc': pc, 'assembly': instruction[2].strip(),
-                             'source_line': mapped_line, 'source_file': source_file})
+                             'source_line': mapped_line, 'source_file': source_file,
+                             'function': function,
+                             'runtime_context': runtime_context(source_file, function)})
         if mapped_line is not None:
             source_map.setdefault(str(mapped_line), []).append(pc)
     return {'instructions': instructions, 'source_map': source_map,
