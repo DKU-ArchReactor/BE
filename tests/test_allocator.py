@@ -123,6 +123,10 @@ def rv32_binary():
     result = compile_source(PROGRAM, 'c', '-O0 -Wall -Werror', 'rv32im')
     assert result.status == BuildStatus.success, result.log
     assert result.binary[:6] == b'\x7fELF\x01\x01'
+    assert result.analysis is not None
+    contexts = {item['runtime_context']['function'] for item in result.analysis['instructions']
+                if item.get('runtime_context')}
+    assert contexts == {'_start', 'malloc', 'calloc', 'realloc', 'free'}
     return result.binary
 
 

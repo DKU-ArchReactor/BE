@@ -62,6 +62,32 @@ def test_mapping_one_to_many_and_startup_excluded():
     assert result['source_map'] == {'2': ['0x00010004', '0x00010008']}
     assert result['instructions'][0]['source_line'] is None
     assert result['instructions'][-1]['source_line'] is None
+    assert result['instructions'][0]['runtime_context']['function'] == '_start'
+    assert result['instructions'][-1]['runtime_context'] is None
+
+
+def test_runtime_context_requires_matching_function_and_source_evidence():
+    result = parse_disassembly('''00010000 <malloc>:
+/runtime/allocator.c:32
+ 10000: 00000013 nop
+00010004 <free>:
+/runtime/allocator.c:57
+ 10004: 00008067 ret
+00010008 <malloc>:
+/tmp/source.c:2
+ 10008: 00000013 nop
+0001000c <_start>:
+ 1000c: 00000013 nop
+00010010 <unknown>:
+/runtime/allocator.c:60
+ 10010: 00000013 nop
+''')
+    items = result['instructions']
+    assert items[0]['runtime_context']['label'] == 'malloc 내부'
+    assert items[1]['runtime_context']['label'] == 'free 내부'
+    assert '이전 값이 남을 수' in items[1]['runtime_context']['detail']
+    assert all(item['runtime_context'] is None for item in items[2:])
+    assert result['source_map'] == {'2': ['0x00010008']}
 
 
 @pytest.mark.parametrize('data', [b'', b'not elf', b'x' * (256 * 1024 + 1)])
