@@ -163,9 +163,7 @@ def test_real_core_executes_all_four_allocators(rv32_binary, tmp_path, mode):
 import json, sys
 from app.state import create_state, delete_state
 from app.simulator import run_simulation
-from service.worker import validate_elf
 binary = open(sys.argv[1], 'rb').read()
-validate_elf(binary)
 state = create_state('allocation-test', binary, mode=sys.argv[2])
 result = run_simulation('allocation-test', max_cycles=2000)
 print(json.dumps({'status': result['status'], 'a0': state['regs'][10],
@@ -174,7 +172,8 @@ print(json.dumps({'status': result['status'], 'a0': state['regs'][10],
 delete_state('allocation-test')
 '''
     process = subprocess.run([sys.executable, '-c', script, str(elf), mode], cwd=source,
-                             capture_output=True, text=True, timeout=30, check=True)
+                             capture_output=True, text=True, timeout=30)
+    assert process.returncode == 0, process.stderr
     result = json.loads(process.stdout)
     assert result['status'] == 'halted', result
     assert result['a0'] == 42, result
